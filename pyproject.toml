@@ -1,0 +1,52 @@
+[build-system]
+requires = ["setuptools>=69"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "enclave"
+version = "0.1.0"
+description = "Passive, one-way AI/ML threat detection for mirrored or data-diode IP traffic"
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = [
+    "dpkt>=1.9.8",
+    "fastapi>=0.115",
+    "uvicorn>=0.34",
+    "pydantic>=2.10",
+    "numpy>=2.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3", "httpx>=0.28", "mypy>=1.14", "ruff>=0.8"]
+
+[project.scripts]
+enclave = "enclave.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+enclave = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
+
+[tool.ruff]
+line-length = 110
+target-version = "py311"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF"]
+ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.mypy]
+python_version = "3.12"
+strict = true
+mypy_path = "src"
+packages = ["enclave"]
+
+[[tool.mypy.overrides]]
+module = ["dpkt", "dpkt.*"]
+ignore_missing_imports = true
