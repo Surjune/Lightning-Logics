@@ -72,6 +72,13 @@ pre{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;p
 .chip{font-size:.72rem;border:1px solid var(--line-strong);border-radius:999px;padding:3px 9px;color:var(--ink-2)}
 .chip.off{opacity:.5;text-decoration:line-through}
 .foot{color:var(--muted);font-size:.75rem;margin-top:16px}
+.uploadbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 0;padding:10px 14px;border:1px dashed var(--line-strong);border-radius:10px;background:var(--surface);transition:border-color .15s,background .15s}
+.uploadbar.drag{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
+.uploadbar.busy{opacity:.7;pointer-events:none}
+.btn{display:inline-flex;align-items:center;gap:6px;cursor:pointer;border:1px solid var(--line-strong);border-radius:8px;padding:6px 12px;font-size:.82rem;font-weight:600;color:var(--ink);background:var(--accent);border-color:var(--accent)}
+.btn.ghost{background:transparent;color:var(--ink-2);text-decoration:none}
+.btn:hover{filter:brightness(1.06)}
+.uphint{color:var(--ink-2);font-size:.82rem}
 </style>
 </head>
 <body>
@@ -83,6 +90,13 @@ pre{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;p
     </div>
     <div class="badge"><span class="dot"></span><span><b>One-way verified</b> &middot; outbound blocked: <span class="mono" id="egress">0</span></span></div>
   </header>
+
+  <div class="uploadbar" id="uploadbar">
+    <label class="btn" for="pcapfile">&#8593; Upload capture</label>
+    <input id="pcapfile" type="file" accept=".pcap,.pcapng,.cap" hidden>
+    <a class="btn ghost" href="/api/sample" download>&#8595; Download sample</a>
+    <span class="uphint" id="uphint">Drop a .pcap / .pcapng here to analyse it &mdash; read-only, nothing is sent back out.</span>
+  </div>
 
   <div class="kpis" id="kpis"></div>
   <div class="det-strip" id="detstrip"></div>
@@ -190,6 +204,26 @@ async function poll(){
     if(changed){ renderRows(); renderDetail(); }
   }catch(e){}
 }
+// File-upload analysis: POST a capture, then refresh the feed from the shared store.
+const _fileInput=document.getElementById('pcapfile'), _bar=document.getElementById('uploadbar'), _hint=document.getElementById('uphint');
+async function analyze(file){
+  if(!file) return;
+  _hint.textContent=`Analysing ${file.name} (${(file.size/1048576).toFixed(1)} MiB)…`;
+  _bar.classList.add('busy');
+  const fd=new FormData(); fd.append('file',file);
+  try{
+    const res=await fetch('/api/analyze',{method:'POST',body:fd});
+    const data=await res.json();
+    if(!res.ok){ _hint.textContent=`Error: ${(data.error&&data.error.message)||res.status}`; }
+    else{ _hint.textContent=`${file.name}: ${data.new_alerts} new alert(s) from ${(data.bytes/1048576).toFixed(1)} MiB.`; await poll(); renderRows(); renderDetail(); }
+  }catch(e){ _hint.textContent='Upload failed: '+e; }
+  finally{ _bar.classList.remove('busy'); _fileInput.value=''; }
+}
+_fileInput.addEventListener('change',e=>analyze(e.target.files[0]));
+['dragover','dragenter'].forEach(ev=>_bar.addEventListener(ev,e=>{e.preventDefault();_bar.classList.add('drag');}));
+['dragleave','drop'].forEach(ev=>_bar.addEventListener(ev,e=>{e.preventDefault();_bar.classList.remove('drag');}));
+_bar.addEventListener('drop',e=>{if(e.dataTransfer.files.length)analyze(e.dataTransfer.files[0]);});
+
 connect(); poll(); setInterval(poll, 2000);
 </script>
 </body>

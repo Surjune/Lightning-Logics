@@ -37,7 +37,7 @@ def _run_pipeline(settings: Settings, intel: Intel, source: object, serve: bool,
         if serve:
             from enclave.api.server import create_app
             from enclave.api.server import serve as serve_api
-            app = create_app(store, metrics)
+            app = create_app(store, metrics, settings, intel)
             api_task = asyncio.create_task(serve_api(app, host, port))
             log.info("dashboard serving", extra={"url": f"http://{host}:{port}"})
             await pipeline.run()
@@ -96,6 +96,26 @@ def cmd_netflow(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_serve(args: argparse.Namespace) -> int:
+    """Serve the dashboard with the upload endpoint and no pre-loaded capture (public demo)."""
+    import asyncio as _asyncio
+
+    from enclave.api.server import create_app
+    from enclave.api.server import serve as serve_api
+
+    new_run_id()
+    settings, intel = _load(Path(args.config) if args.config else None)
+    install(settings.internal_networks)
+    store = AlertStore(HashChainLog(settings.alert_log), "upload")
+    metrics = Metrics()
+    metrics.input_mode = "pcap"
+    app = create_app(store, metrics, settings, intel)
+    log.info("dashboard serving", extra={"url": f"http://{args.host}:{args.port}", "mode": "upload"})
+    with contextlib.suppress(KeyboardInterrupt):
+        _asyncio.run(serve_api(app, args.host, args.port))
+    return 0
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
     path = Path(args.log)
     if not path.is_file():
@@ -142,6 +162,12 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="127.0.0.1")
     p.add_argument("--port", type=int, default=8000)
     p.set_defaults(func=cmd_netflow)
+
+    p = sub.add_parser("serve", help="serve the dashboard + upload endpoint (no pre-loaded capture)")
+    p.add_argument("--config")
+    p.add_argument("--host", default="0.0.0.0")
+    p.add_argument("--port", type=int, default=8000)
+    p.set_defaults(func=cmd_serve)
 
     p = sub.add_parser("verify-log", help="verify the hash-chained evidence log")
     p.add_argument("log", default="var/alerts.jsonl", nargs="?")
