@@ -6,7 +6,8 @@ Reference prototype for SIH Problem Statement **26145** (NTRO).
 Traffic is copied one way into a monitoring enclave through a passive TAP or a hardware
 data diode. Nothing can travel back. This pipeline turns that one-way stream into
 real-time, scored, explainable alerts for six threat classes, using only passively
-observed metadata — it never decrypts, never probes, and never blocks.
+observed metadata — it never decrypts, never probes, and never blocks. Detection is a hybrid of
+always-on statistical detectors and a supervised flow classifier trained on CIC-IDS2017.
 
 ---
 
@@ -22,6 +23,11 @@ observed metadata — it never decrypts, never probes, and never blocks.
 | Data exfiltration | `exfil-baseline` | upload volume vs per-host baseline, out/in ratio, producer-consumer ratio, first-contact destination |
 
 Plus **campaign correlation**: stages on one host within 15 minutes are linked into a single incident.
+
+A seventh detector, **`ml-flow`**, is a supervised gradient-boosted classifier (trained on
+CIC-IDS2017) covering the flow-observable classes — DDoS, scanning, C2 and exfiltration. It is the
+AI/ML layer required by the PS; it is opt-in (see below), so the reproducible demo runs on the
+statistical detectors alone. Details: [docs/MODELS.md](docs/MODELS.md), [docs/FEATURES.md](docs/FEATURES.md), [ml/README.md](ml/README.md).
 
 ## Architecture
 
@@ -65,6 +71,16 @@ enclave verify-log var/alerts.jsonl
 
 # 6. print the standardised alert JSON schema
 enclave schema
+
+# 7. demo server with a file-upload endpoint (evaluator uploads a pcap, sees alerts)
+enclave serve --config config/enclave.example.json --host 0.0.0.0 --port 8000
+#    dashboard has an "Upload capture" button and a "Download sample" link
+
+# 8. (optional) train and enable the supervised ML layer
+pip install -e ".[train]"
+#    download CIC-IDS2017 CSVs to data/cicids2017/ (see ml/README.md), then:
+python ml/train.py --csv-dir data/cicids2017
+enclave replay data/demo.pcap --config config/enclave.ml.example.json --serve
 ```
 
 Run without `--serve` to just process and print a summary. `--speed 0` means "as fast as
@@ -118,14 +134,28 @@ src/enclave/
   schema/    events (FlowRecord, DnsEvent, TlsEvent), alert (Alert JSON schema)
   ingest/    pcap_source, netflow_source, flowmeter, community_id, parsers/{dns,tls}
   features/  windows, lexical (DGA features)
-  detectors/ ddos, beacon, dns, tls, scan, exfil, registry, base
+  ml/        features (canonical flow vector), model (supervised classifier inference)
+  detectors/ ddos, beacon, dns, tls, scan, exfil, ml_flow, registry, base
   fusion/    engine (severity, de-dup), correlator (campaigns)
   sinks/     store (alert store, WebSocket fan-out, hash-chained log, verifier)
   intel.py   offline intelligence loader with hash verification
   egress_guard.py  process-level outbound block
   metrics.py, pipeline.py, synth.py, cli.py
-  api/       FastAPI REST + WebSocket + static dashboard
+  api/       FastAPI REST + WebSocket + static dashboard + upload/analyze endpoints
+ml/          offline training: datasets (CIC-IDS2017 loader), train.py, model card
+docs/        MODELS, FEATURES, VALIDATION, DEPLOYMENT
 tests/       mirrors src/enclave; unit tests + end-to-end scenario
+```
+
+## Deployment
+
+Runs on-premises/offline by design (the enclave has no cloud path). A host-agnostic Docker image
+also serves the dashboard + upload endpoint for a public try-it link (Hugging Face Spaces, AWS App
+Runner/ECS, Render, Railway). See [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
+```bash
+docker build -t enclave-console .
+docker run -p 8000:8000 enclave-console   # http://localhost:8000
 ```
 
 ## Development
@@ -138,8 +168,11 @@ mypy                 # strict type checking
 
 ## Known limitations (deliberately deferred)
 
-- **ML layer** (LightGBM / Isolation Forest / character-CNN) is designed and interfaced but
-  not yet trained in this prototype; the statistical layer runs today and ML refines it.
+- **ML layer**: a supervised gradient-boosted flow classifier (`ml-flow`) is implemented, trained
+  on CIC-IDS2017 and wired into the pipeline (opt-in via `ml_model_dir`). A character-CNN for DGA
+  and an Isolation Forest for unsupervised anomaly are the next models; both plug into the same
+  `Detection` interface. Fill the CIC-IDS2017 metrics in [docs/VALIDATION.md](docs/VALIDATION.md)
+  from your own training run.
 - **IPFIX / NetFlow v9 / sFlow**: only NetFlow v5 is decoded here; the intended path is a
   `goflow2` front end whose JSON the pipeline consumes.
 - **Benchmark harness** for fixed-rate throughput runs is not yet included; `--speed 0`
