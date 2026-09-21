@@ -11,7 +11,7 @@ requires-python = ">=3.11"
 dependencies = [
     "dpkt>=1.9.8",
     "fastapi>=0.115",
-    "uvicorn>=0.34",
+    "uvicorn[standard]>=0.34",
     "pydantic>=2.10",
     "numpy>=2.1",
 ]
@@ -33,13 +33,16 @@ testpaths = ["tests"]
 pythonpath = ["src"]
 
 [tool.ruff]
-line-length = 110
+line-length = 120
 target-version = "py311"
 src = ["src", "tests"]
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP", "N", "SIM", "RUF"]
 ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+"src/enclave/features/lexical.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

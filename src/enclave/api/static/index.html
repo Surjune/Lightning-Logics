@@ -1,0 +1,196 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Enclave Threat Console</title>
+<style>
+:root{
+  --page:#0b1011; --surface:#121819; --surface-2:#182122; --ink:#e9f0ef; --ink-2:#a6b3b2; --muted:#7f8c8b;
+  --line:#243031; --line-strong:#34423f; --accent:#45b3c1; --accent-ink:#062a2f; --accent-soft:#15333a;
+  --crit:#e5484d; --high:#ec835a; --med:#fab219; --low:#7f8c8b; --good:#30a46c;
+  --sans:system-ui,-apple-system,"Segoe UI",sans-serif; --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45}
+.wrap{max-width:1440px;margin:0 auto;padding:16px 20px 40px}
+header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
+.brand{display:flex;align-items:center;gap:12px}
+.mark{width:38px;height:38px;border-radius:8px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;font-size:18px}
+h1{margin:0;font-size:1.3rem;letter-spacing:.01em}
+.sub{margin:1px 0 0;color:var(--ink-2);font-size:.82rem}
+.badge{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:999px;padding:6px 12px;font-size:.82rem}
+.badge b{color:var(--good)}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:14px 0}
+.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
+.kpi .l{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.kpi .v{font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums}
+.kpi .v small{font-size:.8rem;color:var(--ink-2);font-weight:500}
+.kpi .c{font-size:.75rem;color:var(--ink-2)}
+.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start}
+@media (max-width:1000px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line)}
+.ph h2{margin:0;font-size:1rem}
+.tablewrap{overflow:auto;max-height:66vh}
+table{border-collapse:collapse;width:100%;min-width:560px}
+th{position:sticky;top:0;background:var(--surface);text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line)}
+td{padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:var(--surface-2)}
+tbody tr.sel{background:var(--accent-soft)}
+td:first-child{border-left:3px solid transparent}
+tr.s-critical td:first-child{border-left-color:var(--crit)}
+tr.s-high td:first-child{border-left-color:var(--high)}
+tr.s-medium td:first-child{border-left-color:var(--med)}
+tr.s-low td:first-child{border-left-color:var(--low)}
+.sev{display:inline-block;font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid var(--line-strong)}
+.sev.critical{color:var(--crit);border-color:var(--crit)} .sev.high{color:var(--high)} .sev.medium{color:var(--med)} .sev.low{color:var(--low)}
+.mono{font-family:var(--mono);font-size:.85em}
+.conf{font-variant-numeric:tabular-nums}
+.detail{position:sticky;top:12px;max-height:80vh;overflow:auto}
+.detail .body{padding:14px}
+.d-title{font-size:1.15rem;font-weight:600;margin:6px 0}
+.d-sum{color:var(--ink);margin:0 0 12px}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-bottom:8px}
+.facts .k{font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
+.facts .val{overflow-wrap:anywhere}
+h3.sec{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);border-top:1px solid var(--line);padding-top:10px;margin:12px 0 6px}
+.ev{width:100%;min-width:0}
+.ev td{white-space:normal;padding:4px 8px 4px 0;border:0}
+.ev td:nth-child(2){font-family:var(--mono);font-size:.82rem}
+.ev td:nth-child(3){color:var(--ink-2);font-size:.82rem}
+.factor{display:grid;grid-template-columns:150px 1fr 42px;align-items:center;gap:8px;margin:4px 0;font-size:.82rem}
+.factor .bar{height:8px;background:var(--accent);border-radius:0 4px 4px 0}
+.factor .w{text-align:right;font-family:var(--mono);color:var(--ink-2)}
+.action{background:var(--surface-2);border-radius:6px;padding:8px 10px;margin:0}
+.hash{font-family:var(--mono);font-size:.72rem;color:var(--ink-2);overflow-wrap:anywhere}
+pre{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:10px;overflow:auto;max-height:320px;font-family:var(--mono);font-size:.72rem}
+.empty{padding:28px 14px;text-align:center;color:var(--ink-2)}
+.det-strip{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
+.chip{font-size:.72rem;border:1px solid var(--line-strong);border-radius:999px;padding:3px 9px;color:var(--ink-2)}
+.chip.off{opacity:.5;text-decoration:line-through}
+.foot{color:var(--muted);font-size:.75rem;margin-top:16px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand">
+      <div class="mark">&#9724;</div>
+      <div><h1>Enclave Threat Console</h1><p class="sub">Passive detection behind a one-way data diode</p></div>
+    </div>
+    <div class="badge"><span class="dot"></span><span><b>One-way verified</b> &middot; outbound blocked: <span class="mono" id="egress">0</span></span></div>
+  </header>
+
+  <div class="kpis" id="kpis"></div>
+  <div class="det-strip" id="detstrip"></div>
+
+  <div class="grid" style="margin-top:14px">
+    <div class="panel">
+      <div class="ph"><h2>Live detections</h2><span class="sub" id="count">0 alerts</span></div>
+      <div class="tablewrap">
+        <table>
+          <thead><tr><th>Time</th><th>Severity</th><th>Threat</th><th>Source &rarr; target</th><th>Conf.</th></tr></thead>
+          <tbody id="rows"></tbody>
+        </table>
+        <div class="empty" id="empty">Waiting for detections&hellip;</div>
+      </div>
+    </div>
+    <aside class="panel detail"><div class="body" id="detail"><div class="empty">Select a detection to see its evidence.</div></div></aside>
+  </div>
+  <p class="foot">All traffic shown is from the replayed capture. Alert hashes are real SHA-256 over the alert records.</p>
+</div>
+
+<script>
+const SEV = {critical:3,high:2,medium:1,low:0};
+const state = {alerts:new Map(), order:[], selected:null, metrics:null};
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const clock = iso => new Date(iso).toLocaleTimeString('en-GB');
+
+function upsert(a){
+  state.alerts.set(a.alert_id, a);
+  if(!state.order.includes(a.alert_id)) state.order.unshift(a.alert_id);
+  if(!state.selected) state.selected = a.alert_id;
+}
+function renderRows(){
+  const ids = state.order;
+  $('#empty').style.display = ids.length ? 'none' : '';
+  $('#count').textContent = ids.length + ' alert' + (ids.length===1?'':'s');
+  $('#rows').innerHTML = ids.map(id=>{
+    const a = state.alerts.get(id);
+    return `<tr class="s-${a.severity} ${id===state.selected?'sel':''}" data-id="${id}">
+      <td class="mono">${clock(a.detected_at)}</td>
+      <td><span class="sev ${a.severity}">${a.severity}</span></td>
+      <td>${esc(a.threat_class)}<div class="sub">${esc(a.sub_type)}</div></td>
+      <td class="mono">${esc(a.src)}<br><span style="color:var(--ink-2)">&rarr; ${esc(a.dst)}${a.dst_port&&a.dst_port!=='-'?':'+esc(a.dst_port):''}</span></td>
+      <td class="conf">${a.confidence.toFixed(2)}</td></tr>`;
+  }).join('');
+}
+function renderDetail(){
+  const a = state.alerts.get(state.selected);
+  if(!a){ return; }
+  const facts = [['Source',a.src],['Target',`${a.dst}${a.dst_port&&a.dst_port!=='-'?':'+a.dst_port:''} (${a.proto})`],
+    ['Asset',`${a.asset.name} &middot; crit ${a.asset.criticality}/5`],['Confidence',a.confidence.toFixed(2)],
+    ['Severity',`${a.severity} (${a.severity_score}/100)`],['Model',`${a.model.name} ${a.model.version}`],
+    ['Flow ID',a.flow_id],['MITRE',(a.mitre_attack||[]).join(', ')||'-']];
+  const maxw = Math.max(...a.top_factors.map(f=>Math.abs(f.contribution)),0.001);
+  $('#detail').innerHTML = `
+    <div><span class="sev ${a.severity}">${a.severity}</span> <span class="mono" style="color:var(--ink-2)">${a.alert_id}</span></div>
+    <div class="d-title">${esc(a.sub_type)}</div>
+    <p class="d-sum">${esc(a.summary)}</p>
+    <div class="facts">${facts.map(([k,v])=>`<div><div class="k">${k}</div><div class="val ${k==='Flow ID'?'mono':''}">${v}</div></div>`).join('')}</div>
+    <h3 class="sec">Evidence</h3>
+    <table class="ev">${Object.entries(a.evidence).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v.observed)}</td><td>${v.reference?esc(v.reference):''}</td></tr>`).join('')}</table>
+    <h3 class="sec">Why &middot; top factors</h3>
+    ${a.top_factors.map(f=>`<div class="factor"><span class="mono">${esc(f.feature)}</span><span><span class="bar" style="width:${Math.abs(f.contribution)/maxw*100}%"></span></span><span class="w">${f.contribution.toFixed(2)}</span></div>`).join('')}
+    <h3 class="sec">Suggested manual action</h3><p class="action">${esc(a.suggested_action)}</p>
+    <h3 class="sec">Evidence integrity</h3>
+    <div class="hash">alert hash: ${a.custody?esc(a.custody.alert_hash):'n/a'}</div>
+    <div class="hash">prev hash: ${a.custody?esc(a.custody.prev_alert_hash):'n/a'}</div>
+    <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--accent)">Alert record (JSON)</summary><pre>${esc(JSON.stringify(a,null,2))}</pre></details>`;
+}
+function renderKpis(){
+  const m = state.metrics; if(!m) return;
+  const open = state.order.length, crit = [...state.alerts.values()].filter(a=>a.severity==='critical').length;
+  const active = m.detectors.filter(d=>d.active).length;
+  const tiles = [
+    ['Flows/s', Math.round(m.flows_per_s).toLocaleString(), `target ${m.target_flows_per_s.toLocaleString()}`],
+    ['Latency p95', (m.latency_ms.p95).toFixed(1)+' <small>ms</small>', `budget ${m.latency_budget_ms} ms`],
+    ['Critical alerts', crit, `${open} open in total`],
+    ['Detectors', `${active} <small>/ 6</small>`, m.input_mode==='flow'?'flow-only input':'all inputs'],
+    ['Dropped', m.dropped, `${(m.events.flow||0).toLocaleString()} flows`],
+  ];
+  $('#kpis').innerHTML = tiles.map(([l,v,c])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="c">${c}</div></div>`).join('');
+  $('#egress').textContent = m.egress_blocked;
+  $('#detstrip').innerHTML = m.detectors.map(d=>`<span class="chip ${d.active?'':'off'}" title="${esc(d.reason)}">${esc(d.name)}</span>`).join('');
+}
+$('#rows').addEventListener('click', e=>{ const tr=e.target.closest('tr'); if(tr){ state.selected=tr.dataset.id; renderRows(); renderDetail(); }});
+
+function connect(){
+  let ws;
+  try{ ws = new WebSocket((location.protocol==='https:'?'wss://':'ws://')+location.host+'/ws/alerts'); }
+  catch(e){ return; }
+  ws.onmessage = ev=>{
+    const msg = JSON.parse(ev.data);
+    if(msg.type==='metrics'){ state.metrics=msg.metrics; renderKpis(); return; }
+    if(msg.alert){ upsert(msg.alert); renderRows(); renderDetail(); }
+  };
+  ws.onclose = ()=> setTimeout(connect, 2500);
+}
+// REST fallback so the feed works even without a WebSocket transport
+async function poll(){
+  try{ state.metrics = await (await fetch('/api/metrics')).json(); renderKpis(); }catch(e){}
+  try{
+    const alerts = await (await fetch('/api/alerts?limit=200')).json();
+    let changed = false;
+    for(const a of alerts.reverse()){ if(!state.alerts.has(a.alert_id)) changed = true; upsert(a); }
+    if(changed){ renderRows(); renderDetail(); }
+  }catch(e){}
+}
+connect(); poll(); setInterval(poll, 2000);
+</script>
+</body>
+</html>
