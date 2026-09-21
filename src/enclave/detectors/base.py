@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from pathlib import Path
 from typing import ClassVar
 
 from enclave.core.config import NetworkContext
@@ -17,6 +18,7 @@ from enclave.schema.events import Event, EventKind, FlowRecord, InputMode
 class DetectorContext:
     network: NetworkContext
     intel: Intel
+    ml_model_dir: Path | None = None
 
 
 class Detector(ABC):
@@ -24,6 +26,14 @@ class Detector(ABC):
     version: ClassVar[str] = "1.0"
     consumes: ClassVar[frozenset[EventKind]]
     purpose: ClassVar[str]
+
+    def unavailable_reason(self) -> str | None:
+        """Why this detector cannot run even though its event kinds are present (e.g. no model).
+
+        Returns None when the detector is ready. The registry uses this to disable a detector
+        gracefully and report the reason on the dashboard.
+        """
+        return None
 
     def __init__(self, ctx: DetectorContext) -> None:
         self.ctx = ctx

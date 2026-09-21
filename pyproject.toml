@@ -18,6 +18,11 @@ dependencies = [
 
 [project.optional-dependencies]
 dev = ["pytest>=8.3", "httpx>=0.28", "mypy>=1.14", "ruff>=0.8"]
+# Runtime inference for the supervised flow classifier (optional; statistical detectors
+# run without it). Install with:  pip install -e ".[ml]"
+ml = ["scikit-learn>=1.5", "joblib>=1.4"]
+# Training the model from CIC-IDS2017 CSVs (repository-root ml/train.py):  pip install -e ".[train]"
+train = ["scikit-learn>=1.5", "joblib>=1.4", "pandas>=2.2"]
 
 [project.scripts]
 enclave = "enclave.cli:main"
@@ -51,5 +56,5 @@ mypy_path = "src"
 packages = ["enclave"]
 
 [[tool.mypy.overrides]]
-module = ["dpkt", "dpkt.*"]
+module = ["dpkt", "dpkt.*", "joblib", "sklearn", "sklearn.*"]
 ignore_missing_imports = true

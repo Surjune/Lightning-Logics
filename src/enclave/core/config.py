@@ -35,6 +35,9 @@ class Settings(BaseModel):
     allowlist: list[IPvAnyAddress] = Field(default_factory=list)
     intel_dir: Path = Path("intel")
     alert_log: Path = Path("var/alerts.jsonl")
+    # Directory holding the trained flow-classifier artifact. Unset -> the supervised ML
+    # detector stays off and the statistical detectors run alone (the reproducible demo).
+    ml_model_dir: Path | None = None
     log_level: str = "INFO"
 
     @field_validator("log_level")

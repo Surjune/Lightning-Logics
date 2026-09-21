@@ -9,12 +9,14 @@ from enclave.detectors.beacon import BeaconDetector
 from enclave.detectors.ddos import DdosDetector
 from enclave.detectors.dns import DnsDetector
 from enclave.detectors.exfil import ExfilDetector
+from enclave.detectors.ml_flow import MlFlowDetector
 from enclave.detectors.scan import ScanDetector
 from enclave.detectors.tls import TlsDetector
 from enclave.schema.events import EventKind, InputMode
 
 ALL_DETECTORS: tuple[type[Detector], ...] = (
     DdosDetector, BeaconDetector, DnsDetector, TlsDetector, ScanDetector, ExfilDetector,
+    MlFlowDetector,
 )
 
 KINDS_BY_MODE: dict[InputMode, frozenset[EventKind]] = {
@@ -41,6 +43,11 @@ def build_detectors(mode: InputMode, ctx: DetectorContext) -> tuple[list[Detecto
             statuses.append(DetectorStatus(cls.name, cls.purpose, False,
                                            f"needs {', '.join(sorted(missing))} events, which {mode} input lacks"))
             continue
-        active.append(cls(ctx))
+        detector = cls(ctx)
+        blocked = detector.unavailable_reason()
+        if blocked is not None:
+            statuses.append(DetectorStatus(cls.name, cls.purpose, False, blocked))
+            continue
+        active.append(detector)
         statuses.append(DetectorStatus(cls.name, cls.purpose, True, "running"))
     return active, statuses

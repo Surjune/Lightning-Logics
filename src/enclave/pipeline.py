@@ -40,7 +40,8 @@ class Pipeline:
         self.store = store
         self.metrics = metrics
         network = NetworkContext(settings)
-        self.detectors, statuses = build_detectors(source.mode, DetectorContext(network, intel))
+        self.detectors, statuses = build_detectors(
+            source.mode, DetectorContext(network, intel, settings.ml_model_dir))
         self.fusion = FusionEngine(network, settings.sensor_id, source.mode.value)
         metrics.detectors = statuses
         metrics.source_ref = source.source_ref
