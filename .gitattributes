@@ -1,0 +1,7 @@
+# Normalise text line endings, keep binaries untouched
+* text=auto
+*.pdf binary
+*.pcap binary
+*.pcapng binary
+*.joblib binary
+*.png binary
