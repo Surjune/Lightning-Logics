@@ -1,0 +1,17 @@
+{
+  "sensor_id": "enclave-sensor-01",
+  "internal_networks": ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"],
+  "intel_dir": "intel",
+  "alert_log": "var/alerts.jsonl",
+  "log_level": "INFO",
+  "allowlist": ["192.0.2.123"],
+  "assets": [
+    {"ip": "10.10.0.5",  "name": "Public web gateway",          "zone": "DMZ", "criticality": 4},
+    {"ip": "10.10.0.8",  "name": "External DNS resolver",       "zone": "DMZ", "criticality": 3},
+    {"ip": "10.10.1.15", "name": "SCADA HMI, substation 3",     "zone": "OT",  "criticality": 5},
+    {"ip": "10.40.0.20", "name": "Plant historian database",    "zone": "OT",  "criticality": 5},
+    {"ip": "10.30.2.41", "name": "Finance workstation FIN-041", "zone": "IT",  "criticality": 3},
+    {"ip": "10.30.5.23", "name": "Engineering laptop ENG-023",  "zone": "IT",  "criticality": 3},
+    {"ip": "10.30.7.12", "name": "Print server PRN-01",         "zone": "IT",  "criticality": 1}
+  ]
+}
