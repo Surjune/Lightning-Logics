@@ -1,0 +1,2 @@
+# demo blocklist
+qx-sync.test
