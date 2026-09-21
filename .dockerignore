@@ -1,0 +1,14 @@
+.venv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+.mypy_cache/
+.ruff_cache/
+.pytest_cache/
+data/
+var/
+ml/artifacts/
+tests/
+docs/*.pdf
+*.egg-info/
