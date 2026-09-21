@@ -29,7 +29,7 @@ from sklearn.model_selection import train_test_split
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from datasets import BENIGN, load_cicids2017, make_synthetic
+from datasets import BENIGN, load_cicids2017, load_feature_csv, make_synthetic
 
 from enclave.ml.features import FEATURE_NAMES
 
@@ -69,6 +69,7 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--csv-dir", help="directory of CIC-IDS2017 flow CSVs")
+    src.add_argument("--csv", help="a single feature CSV from ml/generate_dataset.py")
     src.add_argument("--synthetic", action="store_true", help="use fabricated demo flows")
     parser.add_argument("--rows", type=int, default=6000, help="synthetic rows per class")
     parser.add_argument("--test-frac", type=float, default=0.3)
@@ -79,6 +80,9 @@ def main() -> int:
     if args.synthetic:
         frame = make_synthetic(args.rows, args.seed)
         dataset, temporal = "synthetic-demo", False
+    elif args.csv:
+        frame = load_feature_csv(Path(args.csv))
+        dataset, temporal = "generated-flows", False
     else:
         frame = load_cicids2017(Path(args.csv_dir))
         dataset, temporal = "CIC-IDS2017", True

@@ -139,3 +139,12 @@ def make_synthetic(rows_per_class: int, seed: int) -> pd.DataFrame:
     ]
     rng.shuffle(records)
     return pd.DataFrame(records, columns=[*FEATURE_NAMES, "label"])
+
+
+def load_feature_csv(path: Path) -> pd.DataFrame:
+    """Load a CSV whose columns are exactly FEATURE_NAMES + 'label' (what generate_dataset.py writes)."""
+    frame = pd.read_csv(path)
+    missing = ({*FEATURE_NAMES, "label"}) - set(frame.columns)
+    if missing:
+        raise KeyError(f"{path} is missing columns: {sorted(missing)}")
+    return frame[[*FEATURE_NAMES, "label"]].dropna()
