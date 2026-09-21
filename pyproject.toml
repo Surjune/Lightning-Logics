@@ -49,6 +49,8 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 
 [tool.ruff.lint.per-file-ignores]
 "src/enclave/features/lexical.py" = ["E501"]
+# The word list is one readable string joined by .split(); a list literal would exceed the line length.
+"ml/generate_dataset.py" = ["SIM905"]
 
 [tool.mypy]
 python_version = "3.12"
