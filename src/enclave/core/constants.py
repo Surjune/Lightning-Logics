@@ -194,3 +194,29 @@ API_DEFAULT_HOST: Final = "127.0.0.1"
 API_DEFAULT_PORT: Final = 8000
 API_ALERTS_DEFAULT_LIMIT: Final = 100
 API_ALERTS_MAX_LIMIT: Final = 1_000
+
+# --- Machine learning (supervised flow classifier) --------------------------------------------
+# The ML flow-classifier covers the flow-observable classes (DDoS, scanning, botnet C2,
+# exfiltration). DNS/TLS classes stay with their metadata detectors, which need packet payload
+# fields a flow record does not carry. This mirrors the flow-only graceful-degradation set.
+ML_MODEL_DIR: Final = "ml/artifacts"
+ML_MODEL_FILE: Final = "flow_classifier.joblib"
+ML_META_FILE: Final = "flow_classifier.meta.json"
+# A flow is only turned into an alert when the model is at least this confident it is malicious.
+# 0.6 keeps the supervised layer conservative; the statistical detectors are the always-on floor.
+ML_MIN_CONFIDENCE: Final = 0.6
+# Small constant added to denominators when deriving rate features, so a zero-duration flow
+# (single packet) does not divide by zero. 1 ms is below the resolution of any real flow.
+ML_RATE_EPSILON_S: Final = 1e-3
+# Model artifacts are verified against this hash on load; a mismatch refuses to load the model
+# rather than trust an unverified binary (same posture as the offline intel bundle).
+ML_VERIFY_HASH: Final = True
+# Benign is the negative class; predicting it emits no alert.
+ML_BENIGN_LABEL: Final = "benign"
+
+# --- Upload / analysis endpoint (demo convenience) --------------------------------------------
+# Cap on an uploaded capture. 64 MiB comfortably holds a few minutes of a mirrored link while
+# bounding memory and analysis time for a shared public demo.
+UPLOAD_MAX_BYTES: Final = 64 * 1024 * 1024
+UPLOAD_ALLOWED_SUFFIXES: Final[frozenset[str]] = frozenset({".pcap", ".pcapng", ".cap"})
+UPLOAD_READ_CHUNK: Final = 1 << 20
