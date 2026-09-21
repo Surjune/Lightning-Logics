@@ -114,11 +114,12 @@ class ExfilDetector(Detector):
             return None
         top_dst, top_bytes = win.by_dst.most_common(1)[0]
         first_contact = top_dst not in (self._known.get(host) or set())
+        sub = "Bulk upload to a new destination" if first_contact else "Bulk upload"
         ratio = win.bytes_out / max(win.bytes_in, 1)
         # bytes -> MiB for display
         out_mib = win.bytes_out / BYTES_PER_MIB
         return Detection(
-            threat_class=ThreatClass.EXFILTRATION, sub_type="Bulk upload" + (" to a new destination" if first_contact else ""),
+            threat_class=ThreatClass.EXFILTRATION, sub_type=sub,
             entity=f"{host}>{top_dst}", host=host, src=host, dst=top_dst,
             dst_port=str(win.dst_port.get(top_dst, 0)), proto=proto_name(win.proto), flow_id=win.sample_flow,
             event_start=win.first_ts, event_end=win.last_ts, confidence=confidence,

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import itertools
 from collections import deque
 from dataclasses import dataclass, field
 
@@ -61,7 +62,7 @@ class BeaconDetector(Detector):
         if len(st.starts) < BEACON_MIN_CONNECTIONS:
             return []
         starts = sorted(st.starts)
-        intervals = [b - a for a, b in zip(starts, starts[1:], strict=False)]
+        intervals = [b - a for a, b in itertools.pairwise(starts)]
         mean_interval = mean(intervals)
         if mean_interval < BEACON_MIN_INTERVAL_S:
             return []

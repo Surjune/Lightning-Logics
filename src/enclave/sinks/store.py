@@ -105,7 +105,7 @@ class AlertStore:
     def get(self, alert_id: str) -> Alert | None:
         return self._alerts.get(alert_id)
 
-    def list(self, limit: int, severity: str | None = None, threat_class: str | None = None) -> list[Alert]:
+    def recent(self, limit: int, severity: str | None = None, threat_class: str | None = None) -> list[Alert]:
         out: list[Alert] = []
         for alert in reversed(self._alerts.values()):
             if severity and alert.severity.value != severity:
