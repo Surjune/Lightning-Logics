@@ -93,7 +93,7 @@ possible"; any positive number is a real-time multiplier.
 | **Read-only ingest** | Listen-only sources; no active modules; `egress_guard` blocks any outbound `connect`/`sendto` at process level | Test raises `EgressAttemptError`; dashboard shows blocked-attempt count |
 | **No payload decryption** | Only the cleartext TLS ClientHello, packet sizes and timing are parsed; QUIC Initial packets are left sealed by design | The TLS parser stops after the handshake; no key material anywhere |
 | **Streaming, not batch** | Event-time windows, 5 s flow active timeout, per-second detector flush, alerts emitted mid-flow | Per-alert processing latency reported as p50/p95 |
-| **Defined throughput target** | Target: 20,000 flows/s sustained on a 4-core laptop | Replay with `--speed 0` reports events/s, latency and drops (fill in measured numbers) |
+| **Defined throughput target** | Target 20,000 flows/s; **measured ~6,300 events/s** single-process on a laptop (incl. startup), p95 latency ~0.17 s, 0 drops | `--speed 0` reports events/s, latency and drops; the 20k/s target needs the partitioned-worker path (roadmap) |
 | **Standard alert schema** | Pydantic `Alert` exported as JSON Schema; Community ID flow id; evidence, factors, MITRE, custody hashes | `GET /api/schema/alert` / `enclave schema` |
 
 ## Alert schema
@@ -182,8 +182,9 @@ mypy                 # strict type checking
 - Payload-level attacks inside encrypted sessions and very slow-and-low exfiltration are out
   of scope for a metadata-only system; this is a monitoring layer within defence in depth.
 
-Throughput and accuracy figures must come from your own measured runs; targets in this repo
-are goals to verify, not results.
+Throughput and accuracy figures should be re-measured on your own hardware. The ~6,300 events/s
+above is a single-process laptop run including startup; the 20k/s target is a goal for the
+partitioned-worker path, not a current result.
 
 ## Authorisation note
 
