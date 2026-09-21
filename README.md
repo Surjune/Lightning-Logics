@@ -76,10 +76,10 @@ enclave schema
 enclave serve --config config/enclave.example.json --host 0.0.0.0 --port 8000
 #    dashboard has an "Upload capture" button and a "Download sample" link
 
-# 8. (optional) train and enable the supervised ML layer
+# 8. (optional) generate a dataset with no download and train the supervised ML layer
 pip install -e ".[train]"
-#    download CIC-IDS2017 CSVs to data/cicids2017/ (see ml/README.md), then:
-python ml/train.py --csv-dir data/cicids2017
+python ml/generate_dataset.py                       # data/generated/{flows,dns}.csv + provenance
+python ml/train.py --csv data/generated/flows.csv   # or --csv-dir data/cicids2017 for the public set
 enclave replay data/demo.pcap --config config/enclave.ml.example.json --serve
 ```
 

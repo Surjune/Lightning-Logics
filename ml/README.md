@@ -53,6 +53,28 @@ families are dropped — they are out of scope for a flow-only classifier.
 Complementary sets for future work: **CIC-DDoS2019** (DDoS subtypes), **CTU-13 / Stratosphere**
 (real botnet C2), **CIC-Bell-DNS-EXF-2021** (exfil). See [`../docs/VALIDATION.md`](../docs/VALIDATION.md).
 
+## Generate a dataset without downloading anything (PS option a)
+
+The problem statement's dataset section lists synthetic / lab-generated traffic (iperf3, hping3,
+Slowloris, dnscat2/iodine, DGA). `ml/generate_dataset.py` produces a labelled, feature-extracted
+dataset that models each of those tools' **flow-level signatures** — it never sends a packet:
+
+```bash
+python ml/generate_dataset.py                          # data/generated/{flows.csv, dns.csv, DATASET.md}
+python ml/train.py --csv data/generated/flows.csv      # trains ml-flow on the flow dataset
+python ml/train_dga.py --csv data/generated/dns.csv    # trains a DGA / tunnel classifier
+```
+
+- `flows.csv` — 5 classes (benign, ddos, recon_scan, c2_beacon, exfiltration); benign models
+  iperf3/HTTP/DNS/keepalive, ddos models hping3 SYN+UDP floods and Slowloris.
+- `dns.csv` — 3 classes (benign, dga, dns_tunnel); DGA uses arithmetic and dictionary algorithms,
+  tunnelling models iodine/dnscat2 long high-entropy subdomains with TXT/NULL records.
+- `DATASET.md` — provenance (which tool each class models) and exact row counts; fully reproducible
+  from the seed.
+
+Results are in [../docs/VALIDATION.md](../docs/VALIDATION.md). This is the fastest path to a live AI
+model; CIC-IDS2017 remains the independent public cross-check.
+
 ## Training / validation approach
 
 - **Split:** temporal for CIC-IDS2017 (`--csv-dir`) — the tail of the capture is the test set, so the
@@ -67,10 +89,11 @@ Complementary sets for future work: **CIC-DDoS2019** (DDoS subtypes), **CTU-13 /
 
 ## Demo model (runnable before the dataset is downloaded)
 
-`python ml/train.py --synthetic` trains on fabricated flows with plausible per-class distributions,
-purely to prove the end-to-end wiring. **Its metrics are not evidence of real-world accuracy** — use
-CIC-IDS2017 for that. Current demo model: `HistGradientBoostingClassifier`, macro-F1 ≈ 0.95 on a
-held-out synthetic split (ddos/recon_scan overlap because both are small SYN flows).
+`python ml/train.py --synthetic` (or the richer `--csv data/generated/flows.csv`) trains on
+fabricated flows to prove the end-to-end wiring and give a live model with no download. **Synthetic
+metrics are not evidence of real-world accuracy** — CIC-IDS2017 is the independent cross-check.
+Current model: `HistGradientBoostingClassifier`, macro-F1 ≈ 0.95 (ddos/recon_scan overlap because
+both are small SYN flows at the flow level).
 
 ## Artifacts
 

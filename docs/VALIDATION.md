@@ -15,6 +15,7 @@ but only prove the wiring.
 | CIC-Bell-DNS-EXF-2021 | DNS exfiltration | tunnelling / exfil |
 | Tranco top-1M | Benign domain baseline | DGA false-positive rate |
 | abuse.ch SSLBL | JA3 blocklist (offline import) | encrypted-malware fingerprints |
+| **Generated (`ml/generate_dataset.py`)** | Trainable dataset with no download (PS option a) | flow classes + DGA/tunnel |
 | `enclave synth` | Reproducible end-to-end demo | all six + campaign correlation |
 
 Get CIC-IDS2017 from <https://www.unb.ca/cic/datasets/ids-2017.html> (see [`../ml/README.md`](../ml/README.md)).
@@ -55,21 +56,38 @@ Get CIC-IDS2017 from <https://www.unb.ca/cic/datasets/ids-2017.html> (see [`../m
 > After `python ml/train.py --csv-dir data/cicids2017`, copy the per-class numbers from
 > `ml/artifacts/flow_classifier.meta.json` (`metrics.per_class`) into this table.
 
-### Synthetic demo (wiring proof only — not real-world accuracy)
+### Generated dataset (PS option a — no download required)
 
-`HistGradientBoostingClassifier`, held-out stratified split, 9,000 test flows:
+`ml/generate_dataset.py` writes a 40,000-row flow dataset (5 classes, modelling iperf3/hping3/
+Slowloris/scan/C2/exfil signatures) and a 24,000-row DNS dataset (DGA + tunnelling). Train with:
+
+```bash
+python ml/generate_dataset.py
+python ml/train.py --csv data/generated/flows.csv     # flow classifier
+python ml/train_dga.py --csv data/generated/dns.csv   # DGA / tunnel classifier
+```
+
+**Flow classifier** (`HistGradientBoostingClassifier`, held-out stratified split, 12,000 test flows):
 
 | Class | Precision | Recall | F1 |
 | --- | --- | --- | --- |
-| benign | 1.00 | 1.00 | 1.00 |
-| c2_beacon | 1.00 | 1.00 | 1.00 |
-| ddos | 0.89 | 0.85 | 0.87 |
+| benign | 0.99 | 0.99 | 0.99 |
+| c2_beacon | 0.99 | 0.99 | 0.99 |
+| ddos | 0.89 | 0.86 | 0.87 |
 | exfiltration | 1.00 | 1.00 | 1.00 |
-| recon_scan | 0.86 | 0.89 | 0.87 |
+| recon_scan | 0.86 | 0.89 | 0.88 |
 | **macro avg** | **0.95** | **0.95** | **0.95** |
 
-The ddos/recon_scan overlap is expected: in the synthetic generator both are small SYN flows. Real
-CIC-IDS2017 separates them on rate and fan-out.
+The ddos/recon_scan overlap is expected — both are small SYN flows at the flow level; rate and
+fan-out (which the statistical `ddos-stat`/`scan-trw` detectors use across flows) separate them.
+
+**DGA / DNS-tunnel classifier** (10 lexical features, 7,200 test names): precision/recall/F1 = **1.00**
+for all of benign / dga / dns_tunnel. This near-perfect score reflects the clean separation of
+*synthetic* names (random DGA vs. dictionary words); real dictionary-DGA families are harder, so treat
+this as a wiring/feature validation, and cross-check on DGArchive samples.
+
+> These numbers come from a self-consistent synthetic dataset. CIC-IDS2017 (above) is the
+> independent, public cross-check — fill its table from your own run.
 
 ## End-to-end system validation (statistical layer)
 
