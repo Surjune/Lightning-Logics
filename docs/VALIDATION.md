@@ -95,20 +95,6 @@ against real captures or live traffic; the synthetic demo showcases the statisti
 `dga-ml` runs cleanly on either.
 
 
-### CIC-IDS2017 (fill after training)
-
-| Class | Precision | Recall | F1 | Support |
-| --- | --- | --- | --- | --- |
-| benign | _tbd_ | _tbd_ | _tbd_ | _tbd_ |
-| ddos | _tbd_ | _tbd_ | _tbd_ | _tbd_ |
-| recon_scan | _tbd_ | _tbd_ | _tbd_ | _tbd_ |
-| c2_beacon | _tbd_ | _tbd_ | _tbd_ | _tbd_ |
-| exfiltration | _tbd_ | _tbd_ | _tbd_ | _tbd_ |
-| **macro avg** | _tbd_ | _tbd_ | _tbd_ | |
-
-> After `python ml/train.py --csv-dir data/cicids2017`, copy the per-class numbers from
-> `ml/artifacts/flow_classifier.meta.json` (`metrics.per_class`) into this table.
-
 ### Generated dataset (PS option a — no download required)
 
 `ml/generate_dataset.py` writes a 40,000-row flow dataset (5 classes, modelling iperf3/hping3/
