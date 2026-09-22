@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from enclave.detectors.base import Detector, DetectorContext
 from enclave.detectors.beacon import BeaconDetector
 from enclave.detectors.ddos import DdosDetector
+from enclave.detectors.dga_ml import DgaMlDetector
 from enclave.detectors.dns import DnsDetector
 from enclave.detectors.exfil import ExfilDetector
 from enclave.detectors.ml_flow import MlFlowDetector
@@ -16,7 +17,7 @@ from enclave.schema.events import EventKind, InputMode
 
 ALL_DETECTORS: tuple[type[Detector], ...] = (
     DdosDetector, BeaconDetector, DnsDetector, TlsDetector, ScanDetector, ExfilDetector,
-    MlFlowDetector,
+    MlFlowDetector, DgaMlDetector,
 )
 
 KINDS_BY_MODE: dict[InputMode, frozenset[EventKind]] = {

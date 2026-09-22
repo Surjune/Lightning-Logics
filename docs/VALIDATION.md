@@ -67,19 +67,32 @@ topped up synthetically (`python ml/train.py --csv-dir data/cicids2017 --augment
 
 | Class | Precision | Recall | F1 | Training data |
 | --- | --- | --- | --- | --- |
-| benign | 1.00 | 1.00 | 1.00 | **80,000 real** |
-| ddos | 0.99 | 0.99 | 0.99 | **40,000 real** (DoS + DDoS days) |
-| recon_scan | 1.00 | 0.99 | 0.99 | 1,956 real PortScan + synthetic |
-| c2_beacon | 1.00 | 1.00 | 1.00 | synthetic only — no Botnet file downloaded |
+| benign | 0.99 | 1.00 | 1.00 | **80,000 real** |
+| ddos | 1.00 | 0.99 | 0.99 | **40,000 real** (DoS + DDoS days) |
+| recon_scan | 1.00 | 0.99 | 0.99 | **1,956 real** PortScan + synthetic |
+| c2_beacon | 0.99 | 0.97 | 0.98 | **1,437 real** Bot + synthetic |
 | exfiltration | 1.00 | 1.00 | 1.00 | 36 real Infiltration + synthetic |
-| **macro avg** | **1.00** | **1.00** | **1.00** | macro-F1 0.9965 |
+| **macro avg** | **1.00** | **0.99** | **0.99** | macro-F1 0.9933 |
 
-Honest reading: **benign, ddos and recon_scan are validated on real CIC-IDS2017 traffic** — the
-ddos F1 of 0.99 is a genuine real-data result, and benign at 1.00 confirms the ~0% false-positive
-rate. **c2_beacon and exfiltration scores are on synthetic data** (CIC-IDS2017's Infiltration is ~36
-rows and its Botnet is a separate file), so their perfect scores reflect clean synthetic separation,
-not real-world difficulty. To make those two real too, add `Botnet-Friday-no-metadata.parquet` (real
-C2) to `data/cicids2017/` and retrain.
+Honest reading: **benign, ddos, recon_scan and c2_beacon carry real CIC-IDS2017 traffic** — ddos F1
+0.99 and c2_beacon F1 0.98 are genuine real-data results, and benign confirms the ~0% false-positive
+rate. Only **exfiltration** stays mostly synthetic, because CIC-IDS2017's Infiltration class is ~36
+rows (a known dataset limitation), so its perfect score reflects clean synthetic separation.
+
+### DGA / DNS-tunnel classifier (`dga-ml`, live)
+
+Trained on the generated DNS dataset (`ml/train_dga.py`), 7,200 held-out names: precision/recall/F1 =
+**1.00** for benign / dga / dns_tunnel. This is clean *synthetic* separation, not real dictionary-DGA
+difficulty — treat it as feature/wiring validation and cross-check on DGArchive. The detector runs
+live beside `dns-lexical` and, being lexical-only, is distribution-robust.
+
+### Note: run ML on real traffic, not the synthetic demo
+
+`ml-flow` is validated on real benign traffic (0.03% FP). On the **synthetic** demo pcap its benign
+flows come from a generator whose distribution differs from real traffic, so it over-flags
+`recon_scan` (a measured ~12,000 false alerts across the whole capture). Enable ML (`ml_model_dir`)
+against real captures or live traffic; the synthetic demo showcases the statistical detectors.
+`dga-ml` runs cleanly on either.
 
 
 ### CIC-IDS2017 (fill after training)

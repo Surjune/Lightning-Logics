@@ -28,7 +28,9 @@ them identically.
 Each combines its features with a **logistic signal model** (`core/scoring.py`): a feature exactly at
 its threshold scores 0.5; contributions are weighted into one confidence and ranked as `top_factors`.
 
-## Supervised model — `ml-flow` (opt-in)
+## Supervised models (opt-in via `ml_model_dir`)
+
+### `ml-flow` — flow classifier
 
 - **Algorithm:** gradient-boosted trees (`HistGradientBoostingClassifier`).
 - **Trained on:** CIC-IDS2017 labelled flows (see [`../ml/README.md`](../ml/README.md)).
@@ -36,6 +38,14 @@ its threshold scores 0.5; contributions are weighted into one confidence and ran
   exactly the flow-only degradation set, so it is the "brain" when no packet payload is available.
 - **Config-driven:** switched on by `ml_model_dir` in the config. Off by default, so the reproducible
   demo runs on the statistical detectors alone.
+### `dga-ml` — DGA / DNS-tunnel classifier
+
+- **Algorithm:** gradient-boosted trees over 10 DNS-name lexical features (length, entropy,
+  rare-bigram ratio, digit ratio, subdomain shape, record type — never the raw domain).
+- **Trained by** `ml/train_dga.py`; runs live alongside the statistical `dns-lexical` detector.
+- **Covers:** DGA domains and DNS tunnelling. DNS is high-volume, so it only alerts above a high
+  confidence (0.9) and only on queries. Same opt-in switch and same explainable `Detection` shape.
+
 - **Roadmap models** (interfaces ready): a character-CNN for DGA and an Isolation Forest for
   unsupervised exfil/anomaly — both plug into the same `Detection` interface.
 

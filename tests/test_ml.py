@@ -47,7 +47,7 @@ def test_derive_features_is_deterministic_and_leakage_free() -> None:
 def test_missing_model_is_graceful(tmp_path: Path) -> None:
     clf = load_classifier(tmp_path)  # empty dir: no artifact
     assert clf.available is False
-    assert "no trained model" in clf.reason
+    assert "flow_classifier" in clf.reason and "run the trainer" in clf.reason
     assert clf.predict([0.0] * len(FEATURE_NAMES)) is None
 
 

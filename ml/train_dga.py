@@ -17,17 +17,23 @@ import argparse
 import datetime as dt
 import hashlib
 import json
+import sys
 from pathlib import Path
 from typing import Any
 
 import joblib
+import numpy as np
 import pandas as pd
 from sklearn.ensemble import HistGradientBoostingClassifier
+from sklearn.inspection import permutation_importance
 from sklearn.metrics import classification_report, f1_score
 from sklearn.model_selection import train_test_split
 
-FEATURES = ["label_length", "label_entropy", "digit_ratio", "rare_bigram_ratio", "dga_score",
-            "subdomain_max_label_len", "subdomain_entropy", "num_labels", "qtype", "is_txt_or_null"]
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
+
+from enclave.ml.dns_features import DNS_FEATURE_NAMES
+
+FEATURES = list(DNS_FEATURE_NAMES)
 DEFAULT_SEED = 20260917
 
 
@@ -68,10 +74,17 @@ def main() -> int:
     meta_path = out_dir / "dga_classifier.meta.json"
     joblib.dump(model, model_path)
     classes = [str(c) for c in model.classes_]
+    perm = permutation_importance(model, x_test.to_numpy(), y_test, n_repeats=5,
+                                  random_state=args.seed, scoring="f1_macro")
+    raw = np.clip(perm.importances_mean, 0.0, None)
+    total = float(raw.sum()) or 1.0
+    importances = {name: round(float(v) / total, 4) for name, v in zip(FEATURES, raw, strict=True)}
     meta = {
         "schema_version": "1.0", "model_version": "1.0-generated-dns",
         "model_type": type(model).__name__, "dataset": "generated-dns",
         "feature_names": FEATURES, "classes": classes,
+        "class_to_threat": {"dga": "dga", "dns_tunnel": "dns_tunnel"},
+        "feature_importances": importances,
         "metrics": {"macro_f1": round(macro_f1, 4),
                     "per_class": {k: v for k, v in report.items() if k in classes}},
         "train_rows": len(x_train), "test_rows": len(x_test),

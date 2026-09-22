@@ -23,13 +23,7 @@ import numpy as np
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
-from enclave.core.stats import string_entropy
-from enclave.features.lexical import (
-    dga_name_score,
-    max_label_length,
-    name_features,
-    split_name,
-)
+from enclave.ml.dns_features import DNS_FEATURE_NAMES, features_from_query
 from enclave.ml.features import FEATURE_NAMES, FlowCounts, derive_features
 
 TCP, UDP = 6, 17
@@ -170,21 +164,9 @@ DNS_CLASSES: dict[str, tuple[list[Callable[[np.random.Generator], tuple[str, int
     "dns_tunnel": ([dns_tunnel], "iodine / dnscat2 style long high-entropy subdomains, TXT/NULL records"),
 }
 
-DNS_FEATURES = ("label_length", "label_entropy", "digit_ratio", "rare_bigram_ratio", "dga_score",
-                "subdomain_max_label_len", "subdomain_entropy", "num_labels", "qtype", "is_txt_or_null")
+DNS_FEATURES = DNS_FEATURE_NAMES
 
 
-def dns_row(query: str, qtype: int) -> list[float]:
-    parts = split_name(query)
-    feats = name_features(parts.label)
-    labels = [p for p in query.rstrip(".").split(".") if p]
-    return [
-        feats["length"], feats["char_entropy"], feats["digit_ratio"], feats["rare_bigram_ratio"],
-        dga_name_score(parts.label)[0],
-        float(max_label_length(parts.subdomain)),
-        string_entropy(parts.subdomain.replace(".", "")),
-        float(len(labels)), float(qtype), 1.0 if qtype in (QTYPE_TXT, QTYPE_NULL) else 0.0,
-    ]
 
 
 def generate_dns(rows_per_class: int, seed: int) -> tuple[list[str], list[list[object]]]:
@@ -195,7 +177,7 @@ def generate_dns(rows_per_class: int, seed: int) -> tuple[list[str], list[list[o
         for _ in range(rows_per_class):
             gen = generators[int(r.integers(0, len(generators)))]
             query, qtype = gen(r)
-            rows.append([query, *[round(v, 6) for v in dns_row(query, qtype)], label])
+            rows.append([query, *[round(v, 6) for v in features_from_query(query, qtype)], label])
     r.shuffle(rows)
     return header, rows
 

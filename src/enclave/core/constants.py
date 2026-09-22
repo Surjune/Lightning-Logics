@@ -202,6 +202,11 @@ API_ALERTS_MAX_LIMIT: Final = 1_000
 ML_MODEL_DIR: Final = "ml/artifacts"
 ML_MODEL_FILE: Final = "flow_classifier.joblib"
 ML_META_FILE: Final = "flow_classifier.meta.json"
+# Second supervised model: DGA / DNS-tunnelling classifier over DNS-name lexical features.
+ML_DGA_MODEL_FILE: Final = "dga_classifier.joblib"
+ML_DGA_META_FILE: Final = "dga_classifier.meta.json"
+# DNS is high-volume, so the DGA model must be more confident than the flow model before it alerts.
+ML_DGA_MIN_CONFIDENCE: Final = 0.9
 # A flow is only turned into an alert when the model is at least this confident it is malicious.
 # 0.6 keeps the supervised layer conservative; the statistical detectors are the always-on floor.
 ML_MIN_CONFIDENCE: Final = 0.6

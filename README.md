@@ -24,9 +24,10 @@ always-on statistical detectors and a supervised flow classifier trained on CIC-
 
 Plus **campaign correlation**: stages on one host within 15 minutes are linked into a single incident.
 
-A seventh detector, **`ml-flow`**, is a supervised gradient-boosted classifier (trained on
-CIC-IDS2017) covering the flow-observable classes — DDoS, scanning, C2 and exfiltration. It is the
-AI/ML layer required by the PS; it is opt-in (see below), so the reproducible demo runs on the
+Two supervised models form the AI/ML layer required by the PS, each running live beside the
+statistical detectors: **`ml-flow`** (gradient-boosted flow classifier — DDoS, scanning, C2,
+exfiltration; trained on real CIC-IDS2017) and **`dga-ml`** (gradient-boosted DNS-name classifier —
+DGA and DNS tunnelling). Both are opt-in via `ml_model_dir`, so the reproducible demo runs on the
 statistical detectors alone. Details: [docs/MODELS.md](docs/MODELS.md), [docs/FEATURES.md](docs/FEATURES.md), [ml/README.md](ml/README.md).
 
 ## Architecture
@@ -81,11 +82,13 @@ enclave schema
 enclave serve --config config/enclave.example.json --host 0.0.0.0 --port 8000
 #    dashboard has an "Upload capture" button and a "Download sample" link
 
-# 8. (optional) generate a dataset with no download and train the supervised ML layer
+# 8. (optional) train the supervised ML layer (two models: ml-flow + dga-ml)
 pip install -e ".[train]"
-python ml/generate_dataset.py                       # data/generated/{flows,dns}.csv + provenance
-python ml/train.py --csv data/generated/flows.csv   # or --csv-dir data/cicids2017 for the public set
-enclave replay data/demo.pcap --config config/enclave.ml.example.json --serve
+python ml/generate_dataset.py                            # data/generated/{flows,dns}.csv
+python ml/train.py --csv-dir data/cicids2017 --augment   # flow model on real CIC-IDS2017
+python ml/train_dga.py --csv data/generated/dns.csv      # DGA / tunnel model
+#    Run ML on REAL traffic (live or a real capture), NOT the synthetic demo:
+tcpdump -i eth1 -U -w - | enclave sniff --config config/enclave.ml.example.json --serve
 ```
 
 Run without `--serve` to just process and print a summary. `--speed 0` means "as fast as
@@ -185,6 +188,10 @@ mypy                 # strict type checking
   which scales on hardware with spare cores) or hot-path optimisation.
 - **Docker Compose** with a simulated diode and an internal-only network is on the roadmap;
   the `egress_guard` already enforces the one-way rule at process level.
+- **ML on the synthetic demo**: enable ML (`ml_model_dir`) only on real traffic. The flow model is
+  validated on real CIC-IDS2017 (0.03% false positives on real benign), but the synthetic demo
+  pcap's benign flows differ, so `ml-flow` over-flags there; the statistical detectors are what the
+  demo showcases. `dga-ml` is distribution-robust and runs cleanly on either.
 - Payload-level attacks inside encrypted sessions and very slow-and-low exfiltration are out
   of scope for a metadata-only system; this is a monitoring layer within defence in depth.
 

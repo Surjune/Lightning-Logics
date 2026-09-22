@@ -16,6 +16,8 @@ from typing import Any
 
 from enclave.core.constants import (
     ML_BENIGN_LABEL,
+    ML_DGA_META_FILE,
+    ML_DGA_MODEL_FILE,
     ML_META_FILE,
     ML_MIN_CONFIDENCE,
     ML_MODEL_DIR,
@@ -89,11 +91,11 @@ def _sha256(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _load(model_dir: Path) -> FlowClassifier:
-    model_path = model_dir / ML_MODEL_FILE
-    meta_path = model_dir / ML_META_FILE
+def _load(model_dir: Path, model_file: str, meta_file: str) -> FlowClassifier:
+    model_path = model_dir / model_file
+    meta_path = model_dir / meta_file
     if not model_path.is_file() or not meta_path.is_file():
-        return FlowClassifier(False, f"no trained model in {model_dir} (run ml/train.py)")
+        return FlowClassifier(False, f"no {model_file} in {model_dir} (run the trainer)")
     try:
         import joblib  # optional dependency, imported only when a model exists
     except ImportError:
@@ -106,19 +108,28 @@ def _load(model_dir: Path) -> FlowClassifier:
         if expected and expected != actual:
             return FlowClassifier(False, f"model hash mismatch for {model_path}; refusing to load")
     model = joblib.load(model_path)
-    log.info("flow classifier loaded", extra={"version": meta.get("model_version"),
-                                              "classes": meta.get("classes")})
+    log.info("classifier loaded", extra={"file": model_file, "version": meta.get("model_version"),
+                                         "classes": meta.get("classes")})
     return FlowClassifier(True, "loaded", model, meta)
 
 
-_CACHE: dict[Path, FlowClassifier] = {}
+_CACHE: dict[tuple[Path, str], FlowClassifier] = {}
+
+
+def _cached(model_dir: str | Path, model_file: str, meta_file: str) -> FlowClassifier:
+    key = (Path(model_dir), model_file)
+    cached = _CACHE.get(key)
+    if cached is None:
+        cached = _load(key[0], model_file, meta_file)
+        _CACHE[key] = cached
+    return cached
 
 
 def load_classifier(model_dir: str | Path = ML_MODEL_DIR) -> FlowClassifier:
-    """Load (and memoise) the classifier for a directory. Safe to call when no model exists."""
-    path = Path(model_dir)
-    cached = _CACHE.get(path)
-    if cached is None:
-        cached = _load(path)
-        _CACHE[path] = cached
-    return cached
+    """Load (and memoise) the flow classifier. Safe to call when no model exists."""
+    return _cached(model_dir, ML_MODEL_FILE, ML_META_FILE)
+
+
+def load_dga_classifier(model_dir: str | Path = ML_MODEL_DIR) -> FlowClassifier:
+    """Load (and memoise) the DGA / DNS-tunnel classifier. Safe to call when no model exists."""
+    return _cached(model_dir, ML_DGA_MODEL_FILE, ML_DGA_META_FILE)
