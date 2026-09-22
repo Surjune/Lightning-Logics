@@ -1,0 +1,22 @@
+# systemd unit for running the enclave as an always-on service on the monitoring host.
+# Install:  sudo cp deploy/enclave.service /etc/systemd/system/ && sudo systemctl enable --now enclave
+[Unit]
+Description=Enclave passive threat detection (one-way monitoring)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/opt/enclave
+# Production: point at the live capture feed instead of the upload server, e.g.
+#   ExecStart=/opt/enclave/.venv/bin/enclave sniff --iface eth1 --config config/enclave.json --serve
+ExecStart=/opt/enclave/.venv/bin/enclave serve --config config/enclave.example.json --host 0.0.0.0 --port 8000
+Restart=always
+RestartSec=3
+# Hardening: the monitor never needs to write outside its own dir or gain privileges.
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=/opt/enclave/var
+
+[Install]
+WantedBy=multi-user.target

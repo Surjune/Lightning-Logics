@@ -49,7 +49,32 @@ the image (a model trained on CIC-IDS2017 would mis-fire on a different distribu
 statistical detectors run and every threat class fires. To demonstrate the ML layer, run locally
 against real traffic with a trained model — see [`ml/README.md`](../ml/README.md).
 
-## 3. Enabling the supervised ML layer
+## 3. Running it 24/7 (always-on monitoring)
+
+The product is a continuously running service, not a page you launch per request. The detection
+engine runs non-stop; the dashboard is just a window into it, and alerts keep landing in the
+hash-chained log whether or not anyone is watching.
+
+**Docker Compose** (restarts on crash and on host reboot):
+
+```bash
+docker compose up -d          # start; runs continuously
+docker compose logs -f        # watch
+docker compose ps             # status / health
+```
+
+**systemd** (bare-metal enclave host):
+
+```bash
+sudo cp deploy/enclave.service /etc/systemd/system/
+sudo systemctl enable --now enclave     # starts now and on every boot; Restart=always
+sudo systemctl status enclave
+```
+
+In production, change `ExecStart` from the upload server to the live capture feed
+(`enclave sniff --iface eth1 --serve`), so the service consumes the diode's mirror directly.
+
+## 4. Enabling the supervised ML layer
 
 ```bash
 pip install -e ".[train]"

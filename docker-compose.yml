@@ -1,0 +1,25 @@
+# 24/7 monitoring service. `docker compose up -d` runs the enclave continuously; it restarts on
+# failure and on host reboot, so detection is always-on and the dashboard is always reachable.
+services:
+  enclave:
+    build: .
+    image: enclave-console:latest
+    restart: unless-stopped          # survives crashes and host reboots -> 24/7 monitoring
+    ports:
+      - "8000:8000"                  # dashboard + upload endpoint
+    environment:
+      - PORT=8000
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/api/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - monitoring
+
+# In a real enclave the capture interface is separate and has no route out. The egress guard already
+# blocks outbound at process level; set `internal: true` here to also cut the container off at the
+# Docker network layer (you then reach the dashboard from another container on the same network).
+networks:
+  monitoring:
+    driver: bridge
