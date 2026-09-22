@@ -42,6 +42,41 @@ Get CIC-IDS2017 from <https://www.unb.ca/cic/datasets/ids-2017.html> (see [`../m
 
 ## Results — supervised `ml-flow`
 
+### Real-data false-positive validation (CIC-IDS2017 Monday, benign-only)
+
+The single most important result. We scored **real** CIC-IDS2017 benign flows (the Monday capture,
+458,831 benign flows, IP/port/timestamp stripped) with the flow classifier, and measured how often it
+wrongly flags benign traffic:
+
+| Model trained on… | False positives on 20,000 real benign flows |
+| --- | --- |
+| synthetic benign | 7,205 = **36.0%** |
+| **real benign** (this capture) + synthetic attacks | 6 = **0.03%** |
+
+Real benign traffic is exactly what a synthetic generator gets wrong, so training the benign class on
+a genuine capture collapses the false-positive rate by three orders of magnitude while attack recall
+stays at 1.00 (synthetic). This is the shipped model. Reproduce:
+
+```bash
+python ml/train.py --real-benign "Benign-Monday-no-metadata.parquet"   # .parquet or .csv, file or dir
+```
+
+**Shipped model** (`real-benign+synthetic-attacks`, stratified split, 30,000 test rows):
+
+| Class | Precision | Recall | F1 |
+| --- | --- | --- | --- |
+| benign | 1.00 | 1.00 | 1.00 |
+| c2_beacon | 1.00 | 1.00 | 1.00 |
+| ddos | 0.89 | 0.88 | 0.88 |
+| exfiltration | 1.00 | 1.00 | 1.00 |
+| recon_scan | 0.88 | 0.89 | 0.88 |
+| **macro avg** | **0.95** | **0.95** | **0.95** |
+
+> Attack recall here is still validated on *synthetic* attacks. To validate it on **real** attacks,
+> add the CIC-IDS2017 attack-day files (Tuesday–Friday: DoS, DDoS, PortScan, Bot, Infiltration) to a
+> folder and run `python ml/train.py --csv-dir <folder>` for full real-data multiclass metrics.
+
+
 ### CIC-IDS2017 (fill after training)
 
 | Class | Precision | Recall | F1 | Support |

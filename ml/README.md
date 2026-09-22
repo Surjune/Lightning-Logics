@@ -36,15 +36,21 @@ ports unseen in training, rather than memorising them.
 Primary training set: **CIC-IDS2017** (Canadian Institute for Cybersecurity, University of New
 Brunswick). It ships labelled flow-feature CSVs whose labels map onto our classes.
 
-1. Download the "MachineLearningCVE" CSVs from
-   <https://www.unb.ca/cic/datasets/ids-2017.html> (free; no signup for the CSVs).
-2. Put the `.csv` files in `data/cicids2017/`.
-3. Train:
+1. Download the flow files from <https://www.unb.ca/cic/datasets/ids-2017.html> (free; no signup).
+   Both **`.csv` and `.parquet`** are supported (a `.parquet` may be a single file or a dataset
+   directory). The days: Monday = benign only; Tuesday–Friday = the attacks.
+2. Put the files in `data/cicids2017/`.
+3. Train (`pip install -e ".[train]"` first):
 
    ```bash
-   pip install -e ".[train]"
-   python ml/train.py --csv-dir data/cicids2017
+   python ml/train.py --csv-dir data/cicids2017          # full multiclass on all days
+   python ml/train.py --real-benign Monday.parquet       # real benign + synthetic attacks
    ```
+
+   Use `--real-benign` when you only have the benign day: it pairs real benign traffic with
+   synthetic attack signatures, which cuts the false-positive rate on real traffic from ~36% to
+   ~0.03% (see [../docs/VALIDATION.md](../docs/VALIDATION.md)). Add the attack-day files and switch
+   to `--csv-dir` for fully real multiclass metrics.
 
 Label mapping (`ml/datasets.py`): `BENIGN -> benign`; `DDoS`/`DoS *` -> `ddos`; `PortScan` ->
 `recon_scan`; `Bot` -> `c2_beacon`; `Infiltration` -> `exfiltration`. Web-attack and brute-force
