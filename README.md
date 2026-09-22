@@ -13,107 +13,43 @@ observed metadata. It never decrypts, never probes, and never blocks.
 
 A monitoring box behind a diode can *see* everything on the link but has **no path back** into the
 production network. That kills an entire class of attacks (a hacked analytics box can't pivot inward),
-but it means the detection logic must work **purely from what it passively observes** — packets, flow
-records, and metadata — with no probing, no handshakes, no decryption, and no way to push a block.
+but the detection logic must work **purely from what it passively observes** — packets, flow records,
+and metadata — with no probing, no handshakes, no decryption, and no way to push a block.
 
 ## Our solution
 
 A streaming pipeline that ingests the one-way feed and detects, classifies and scores threats in near
 real time. Detection is a **hybrid**: fast, always-on statistical detectors form the floor, and **two
 supervised ML models** (trained on real CIC-IDS2017 traffic) add a dataset-trained second opinion.
-Every alert explains *why* it fired — feature evidence, weighted factors, and a MITRE ATT&CK mapping —
-and lands in a tamper-evident, hash-chained ledger.
+Every alert explains *why* it fired and lands in a tamper-evident, hash-chained ledger.
 
 ---
 
 ## How it works
 
-```mermaid
-flowchart LR
-    GW["Gateway / peering link<br/>production traffic"]:::prod
-    DIODE{{"TAP / Data diode<br/>one-way copy"}}:::diode
+![How it works: a one-way pipeline — production traffic is mirrored through a TAP/diode one way into the enclave, which ingests read-only, detects and scores, and raises alerts; there is no path back.](docs/img/workflow.svg)
 
-    subgraph ENC["🛡️ Monitoring enclave — no route back to production"]
-        direction LR
-        ING["Ingest<br/><i>read-only</i>"]:::stage
-        MET["Flow meter +<br/>DNS / TLS metadata"]:::stage
-        DET["Detect<br/><b>6 statistical + 2 ML</b>"]:::stage
-        FUS["Fuse<br/>score · dedup · correlate"]:::stage
-        OUT["Alerts<br/>dashboard · ledger · SIEM"]:::out
-        ING --> MET --> DET --> FUS --> OUT
-    end
-
-    GW -->|mirror| DIODE
-    DIODE ==>|one direction only| ING
-
-    classDef prod fill:#e0e7ff,stroke:#4f46e5,color:#312e81
-    classDef diode fill:#fde68a,stroke:#d97706,color:#7c2d12
-    classDef stage fill:#f1f5f9,stroke:#475569,color:#0f172a
-    classDef out fill:#dcfce7,stroke:#16a34a,color:#14532d
-```
-
-**In plain words, from left to right:**
-
-1. The switch/router **mirrors** production traffic into a TAP or data diode.
-2. The diode passes that copy **one way only** into the enclave — there is physically no route back.
-3. **Ingest** reads the stream read-only and records a SHA-256 of every capture (chain of custody).
-4. The **flow meter** turns packets into flows (5-tuple, Community ID) and extracts safe metadata —
-   JA3/JA4 TLS fingerprints, packet size/timing sequences (SPLT), and cleartext DNS names. No payload
-   is decrypted.
-5. **Detectors** score each flow/event; a suspicious one becomes a `Detection` with evidence.
-6. **Fusion** weights it by asset criticality, removes duplicates, and links related stages into one
-   campaign.
-7. The result is a **standardised alert** shown live on the dashboard and appended to the ledger.
-
----
+1. A switch/router **mirrors** production traffic into a TAP or data diode, which passes the copy
+   **one way only** — physically no route back.
+2. The enclave **ingests** it read-only, turns packets into flows, and extracts safe metadata
+   (JA3/JA4, packet size/timing, DNS names) — no payload is decrypted.
+3. Detectors score each flow; **fusion** weights by asset value, de-duplicates, links related stages
+   into a campaign, and emits an explainable alert to the dashboard and ledger.
 
 ## Inside the pipeline
 
-```mermaid
-flowchart TB
-    subgraph ING["① Ingest — read-only, one-way"]
-        direction LR
-        I1["pcap replay"]:::src
-        I2["live capture<br/>tcpdump | sniff"]:::src
-        I3["NetFlow v5"]:::src
-        I4["v9 / IPFIX / sFlow<br/>via goflow2"]:::src
-        I5["file upload"]:::src
-    end
+![Inside the pipeline: ingest, then flow meter and metadata, then detect with 6 statistical plus 2 ML detectors, then fuse, then output.](docs/img/pipeline.svg)
 
-    FM["② Flow meter &amp; metadata<br/>flows · Community ID · JA3 / JA4 · SPLT · DNS names"]:::core
-    Q{"input type?"}:::dec
-    D8["all 8 detectors<br/>DDoS · beacon · DGA · encrypted-malware · scan · exfil · ml-flow · dga-ml"]:::det
-    D4["DDoS · beacon · scan · exfil<br/><i>DNS &amp; TLS detectors stand down (say why)</i>"]:::det
-    FZ["③ Fusion<br/>asset-weighted severity · de-duplication · campaign correlation"]:::core
-
-    subgraph OUT["④ Output"]
-        direction LR
-        O1["standardised alert<br/>(JSON Schema)"]:::out
-        O2["hash-chained<br/>evidence ledger"]:::out
-        O3["REST + WebSocket<br/>dashboard"]:::out
-    end
-
-    ING --> FM --> Q
-    Q -->|packets| D8 --> FZ
-    Q -->|flow-only| D4 --> FZ
-    FZ --> OUT
-
-    classDef src fill:#eff6ff,stroke:#3b82f6,color:#1e3a8a
-    classDef core fill:#ecfeff,stroke:#0891b2,color:#164e63
-    classDef det fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
-    classDef dec fill:#fef9c3,stroke:#ca8a04,color:#713f12
-    classDef out fill:#dcfce7,stroke:#16a34a,color:#14532d
-```
-
-**What each stage does**
-
-| Stage | What happens |
+| Stage | What it does |
 | --- | --- |
-| **① Ingest** | Accepts the one-way feed from any source — recorded pcap, live interface, NetFlow, IPFIX/sFlow (via goflow2), or an uploaded file. Strictly read-only; a process-level guard blocks any outbound connection. |
-| **② Flow meter & metadata** | Aggregates packets into flows, assigns a direction-agnostic Community ID, and pulls the metadata detectors need — TLS JA3/JA4, packet size/timing (SPLT), DNS query names. Payload is never decrypted. |
-| **Graceful degradation** | With full packets, all 8 detectors run. With flow-only input (no payload), the DNS and TLS detectors **switch off and report why**, and the remaining four keep running. |
-| **③ Fusion** | Turns raw detections into alerts: severity = confidence × class impact × asset criticality; duplicates are merged; multiple stages on one host within 15 min are correlated into one campaign. |
-| **④ Output** | Each alert is a standardised JSON record, streamed to the dashboard over WebSocket and appended to a hash-chained ledger (`SHA-256(prev + record)`) so evidence is tamper-evident. |
+| **1 · Ingest** | Reads the one-way feed from any source — pcap, live interface, NetFlow, IPFIX/sFlow (goflow2), or an uploaded file. Read-only; a process-level guard blocks any outbound connection. |
+| **2 · Flow meter** | Aggregates packets into flows with a direction-agnostic Community ID and extracts TLS JA3/JA4, packet size/timing (SPLT) and DNS names. Payload is never decrypted. |
+| **3 · Detect** | 6 statistical detectors + 2 ML models score each flow/event. With flow-only input the DNS/TLS detectors stand down and say why; the rest keep running. |
+| **4 · Fuse** | Severity = confidence × class impact × asset criticality; duplicates merge; stages on one host within 15 min correlate into one campaign. |
+| **5 · Output** | A standardised JSON alert, streamed to the dashboard and appended to the hash-chained ledger (`SHA-256(prev + record)`). |
+
+Every alert — statistical or ML — carries the same explanation (feature evidence, weighted **top
+factors**, and a MITRE ATT&CK mapping), so an analyst always sees *why*. No black box.
 
 ---
 
@@ -128,39 +64,12 @@ flowchart TB
 | Reconnaissance / scanning | `scan-trw` — Threshold Random Walk on failed first contacts, fan-out shape | `ml-flow` |
 | Data exfiltration | `exfil-baseline` — upload vs per-host baseline, out/in ratio, producer-consumer ratio | `ml-flow` |
 
-Plus **campaign correlation** — stages on one host within 15 minutes become one incident. The two ML
-models are gradient-boosted classifiers: `ml-flow` (flow features) and `dga-ml` (DNS-name features).
+Plus **campaign correlation** — stages on one host within 15 minutes become one incident.
 
----
-
-## How an alert explains itself
-
-```mermaid
-flowchart LR
-    F["metadata features<br/>e.g. inter-arrival CV, entropy,<br/>JA3 rarity, PCR"]:::a
-    M["detector / ML model"]:::b
-    C["confidence 0–1"]:::c
-    E["evidence<br/>observed vs reference"]:::d
-    T["top factors<br/>(what drove it)"]:::d
-    A["MITRE ATT&amp;CK<br/>+ suggested action"]:::d
-    S["asset-weighted<br/>severity"]:::e
-    ALERT["standardised alert"]:::f
-
-    F --> M --> C --> S --> ALERT
-    M --> E --> ALERT
-    M --> T --> ALERT
-    M --> A --> ALERT
-
-    classDef a fill:#eff6ff,stroke:#3b82f6,color:#1e3a8a
-    classDef b fill:#f5f3ff,stroke:#7c3aed,color:#4c1d95
-    classDef c fill:#ecfeff,stroke:#0891b2,color:#164e63
-    classDef d fill:#f1f5f9,stroke:#475569,color:#0f172a
-    classDef e fill:#fee2e2,stroke:#dc2626,color:#7f1d1d
-    classDef f fill:#dcfce7,stroke:#16a34a,color:#14532d
-```
-
-Because the same explanation is attached whether an alert came from a statistical detector or an ML
-model, an analyst always sees *why* — no black box.
+**Datasets, models & documentation** — trained and validated on real **CIC-IDS2017** flows; a built-in
+generator also fabricates labelled lab-style traffic (iperf3, hping3, Slowloris, DGA signatures). Model
+cards, feature-engineering rationale and validation metrics:
+[MODELS](docs/MODELS.md) · [FEATURES](docs/FEATURES.md) · [VALIDATION](docs/VALIDATION.md).
 
 ---
 
@@ -169,8 +78,6 @@ model, an analyst always sees *why* — no black box.
 - **Throughput** ~12,000 flows/s (detection engine, single process), **p95 latency ~2 ms**
 - **`ml-flow`** on real CIC-IDS2017: **0.03% false positives** on real benign, **DDoS F1 0.99**, **C2 F1 0.98**, macro-F1 0.99
 - **Quality**: 38 automated tests pass · `ruff` clean · `mypy --strict` clean
-
-Full methodology and per-class tables: [docs/VALIDATION.md](docs/VALIDATION.md).
 
 ## The five architectural constraints
 
