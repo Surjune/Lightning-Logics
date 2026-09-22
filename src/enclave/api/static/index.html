@@ -6,109 +6,183 @@
 <title>Enclave Threat Console</title>
 <style>
 :root{
-  --page:#0b1011; --surface:#121819; --surface-2:#182122; --ink:#e9f0ef; --ink-2:#a6b3b2; --muted:#7f8c8b;
-  --line:#243031; --line-strong:#34423f; --accent:#45b3c1; --accent-ink:#062a2f; --accent-soft:#15333a;
-  --crit:#e5484d; --high:#ec835a; --med:#fab219; --low:#7f8c8b; --good:#30a46c;
-  --sans:system-ui,-apple-system,"Segoe UI",sans-serif; --mono:ui-monospace,"Cascadia Mono",Consolas,monospace;
+  --page:#080b11; --page-2:#0b0f17; --surface:#111722; --surface-2:#161d2a; --raised:#1b2434;
+  --ink:#e8eef6; --ink-2:#9aa7b8; --muted:#657084;
+  --line:#1e2836; --line-strong:#2b3546;
+  --accent:#38bdf8; --accent-2:#818cf8; --accent-ink:#04202b; --accent-soft:#0e2a3a;
+  --crit:#f43f5e; --high:#fb923c; --med:#fbbf24; --low:#64748b; --good:#34d399;
+  --sans:"Inter",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  --mono:ui-monospace,"Cascadia Mono","SF Mono",Consolas,monospace;
+  --shadow:0 1px 2px rgba(0,0,0,.3),0 8px 24px -12px rgba(0,0,0,.55);
+  --radius:14px;
 }
 *{box-sizing:border-box}
-body{margin:0;background:var(--page);color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.45}
-.wrap{max-width:1440px;margin:0 auto;padding:16px 20px 40px}
-header{display:flex;flex-wrap:wrap;gap:12px;align-items:center;justify-content:space-between}
-.brand{display:flex;align-items:center;gap:12px}
-.mark{width:38px;height:38px;border-radius:8px;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-weight:700;font-size:18px}
-h1{margin:0;font-size:1.3rem;letter-spacing:.01em}
-.sub{margin:1px 0 0;color:var(--ink-2);font-size:.82rem}
-.badge{display:inline-flex;align-items:center;gap:8px;border:1px solid var(--line-strong);border-radius:999px;padding:6px 12px;font-size:.82rem}
-.badge b{color:var(--good)}
-.dot{width:8px;height:8px;border-radius:50%;background:var(--good)}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:10px;margin:14px 0}
-.kpi{background:var(--surface);border:1px solid var(--line);border-radius:10px;padding:10px 14px}
-.kpi .l{font-size:.72rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
-.kpi .v{font-size:1.5rem;font-weight:600;font-variant-numeric:tabular-nums}
-.kpi .v small{font-size:.8rem;color:var(--ink-2);font-weight:500}
-.kpi .c{font-size:.75rem;color:var(--ink-2)}
-.grid{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(0,1fr);gap:14px;align-items:start}
-@media (max-width:1000px){.grid{grid-template-columns:1fr}}
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:10px}
-.ph{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;border-bottom:1px solid var(--line)}
-.ph h2{margin:0;font-size:1rem}
+html,body{height:100%}
+body{
+  margin:0;color:var(--ink);font-family:var(--sans);font-size:14px;line-height:1.5;
+  background:
+    radial-gradient(1200px 600px at 85% -10%,rgba(56,189,248,.10),transparent 60%),
+    radial-gradient(900px 500px at 0% 0%,rgba(129,140,248,.08),transparent 55%),
+    var(--page);
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1460px;margin:0 auto;padding:20px 22px 48px}
+
+/* header */
+header{display:flex;flex-wrap:wrap;gap:14px;align-items:center;justify-content:space-between;
+  padding:4px 2px 16px;border-bottom:1px solid var(--line);margin-bottom:18px}
+.brand{display:flex;align-items:center;gap:13px}
+.mark{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;font-size:20px;color:#04121a;
+  background:linear-gradient(150deg,var(--accent),var(--accent-2));box-shadow:0 6px 18px -6px rgba(56,189,248,.6)}
+h1{margin:0;font-size:1.32rem;font-weight:700;letter-spacing:-.01em}
+.sub{margin:2px 0 0;color:var(--ink-2);font-size:.82rem}
+.status{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:7px;background:var(--surface);border:1px solid var(--line-strong);
+  border-radius:999px;padding:6px 13px;font-size:.8rem;color:var(--ink-2)}
+.pill b{color:var(--ink);font-weight:600}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--good);box-shadow:0 0 0 3px rgba(52,211,153,.18)}
+.dot.live{background:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.2);animation:pulse 1.8s ease-in-out infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+
+/* demo toolbar */
+.toolbar{margin:0 0 18px;padding:14px 16px;border-radius:var(--radius);
+  border:1px solid var(--line);background:linear-gradient(180deg,var(--surface),var(--page-2));box-shadow:var(--shadow)}
+.toolbar.drag{border-color:var(--accent);box-shadow:0 0 0 3px rgba(56,189,248,.15)}
+.toolbar.busy{opacity:.6;pointer-events:none}
+.trow{display:flex;flex-wrap:wrap;align-items:center;gap:10px}
+.demopill{display:inline-flex;align-items:center;gap:6px;background:linear-gradient(180deg,#fbbf24,#f59e0b);
+  color:#3a2606;font-weight:800;font-size:.68rem;letter-spacing:.08em;padding:5px 11px;border-radius:999px;
+  box-shadow:0 4px 12px -4px rgba(245,158,11,.6)}
+.btn{display:inline-flex;align-items:center;gap:7px;cursor:pointer;border-radius:9px;padding:8px 14px;
+  font-size:.83rem;font-weight:600;color:var(--accent-ink);border:1px solid transparent;
+  background:linear-gradient(180deg,var(--accent),#0ea5e9);box-shadow:0 4px 14px -6px rgba(56,189,248,.7);transition:transform .1s,filter .15s}
+.btn:hover{filter:brightness(1.07);transform:translateY(-1px)}
+.btn:active{transform:translateY(0)}
+.btn.ghost{background:transparent;color:var(--ink);border-color:var(--line-strong);box-shadow:none}
+.btn.ghost:hover{background:var(--surface-2);filter:none}
+.uphint{color:var(--ink-2);font-size:.82rem;margin-left:2px}
+.demo-note{margin:12px 0 0;padding:11px 14px;font-size:.8rem;line-height:1.5;color:var(--ink-2);
+  border-left:3px solid var(--med);background:rgba(251,191,36,.06);border-radius:0 8px 8px 0}
+.demo-note b{color:var(--ink);font-weight:600}
+
+/* KPIs */
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(176px,1fr));gap:12px;margin:0 0 14px}
+.kpi{position:relative;overflow:hidden;background:linear-gradient(180deg,var(--surface),var(--page-2));
+  border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px;box-shadow:var(--shadow);transition:border-color .15s,transform .1s}
+.kpi:hover{border-color:var(--line-strong);transform:translateY(-1px)}
+.kpi::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
+  background:linear-gradient(90deg,var(--accent),var(--accent-2))}
+.kpi .l{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+.kpi .v{font-size:1.7rem;font-weight:700;letter-spacing:-.02em;margin-top:4px;font-variant-numeric:tabular-nums}
+.kpi .v small{font-size:.78rem;color:var(--ink-2);font-weight:500}
+.kpi .c{font-size:.74rem;color:var(--ink-2);margin-top:2px}
+
+/* detector chips */
+.det-strip{display:flex;flex-wrap:wrap;gap:7px;margin:0 0 16px}
+.chip{display:inline-flex;align-items:center;gap:6px;font-size:.74rem;font-weight:500;border:1px solid var(--line-strong);
+  border-radius:999px;padding:4px 11px;color:var(--ink-2);background:var(--surface)}
+.chip::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--good)}
+.chip.off{opacity:.55}
+.chip.off::before{background:var(--muted)}
+
+/* layout */
+.grid{display:grid;grid-template-columns:minmax(0,1.4fr) minmax(0,1fr);gap:16px;align-items:start}
+@media (max-width:1040px){.grid{grid-template-columns:1fr}}
+.panel{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);overflow:hidden}
+.ph{display:flex;align-items:center;justify-content:space-between;padding:13px 16px;border-bottom:1px solid var(--line);
+  background:linear-gradient(180deg,var(--raised),transparent)}
+.ph h2{margin:0;font-size:1rem;font-weight:600;letter-spacing:-.01em}
+.ph .sub{margin:0;font-size:.78rem}
+
+/* table */
 .tablewrap{overflow:auto;max-height:66vh}
 table{border-collapse:collapse;width:100%;min-width:560px}
-th{position:sticky;top:0;background:var(--surface);text-align:left;font-size:.68rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);padding:8px 10px;border-bottom:1px solid var(--line)}
-td{padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap}
-tbody tr{cursor:pointer}
+th{position:sticky;top:0;z-index:1;background:var(--surface-2);text-align:left;font-size:.66rem;text-transform:uppercase;
+  letter-spacing:.07em;color:var(--muted);font-weight:600;padding:10px 12px;border-bottom:1px solid var(--line)}
+td{padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap;vertical-align:top}
+td .sub{color:var(--ink-2);font-size:.76rem;margin-top:1px}
+tbody tr{cursor:pointer;transition:background .12s}
 tbody tr:hover{background:var(--surface-2)}
 tbody tr.sel{background:var(--accent-soft)}
+tbody tr:last-child td{border-bottom:0}
 td:first-child{border-left:3px solid transparent}
 tr.s-critical td:first-child{border-left-color:var(--crit)}
 tr.s-high td:first-child{border-left-color:var(--high)}
 tr.s-medium td:first-child{border-left-color:var(--med)}
 tr.s-low td:first-child{border-left-color:var(--low)}
-.sev{display:inline-block;font-size:.72rem;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid var(--line-strong)}
-.sev.critical{color:var(--crit);border-color:var(--crit)} .sev.high{color:var(--high)} .sev.medium{color:var(--med)} .sev.low{color:var(--low)}
+tbody tr{animation:fadein .25s ease}
+@keyframes fadein{from{opacity:0;transform:translateY(-3px)}to{opacity:1;transform:none}}
+.sev{display:inline-block;font-size:.7rem;font-weight:700;letter-spacing:.03em;text-transform:capitalize;
+  padding:3px 9px;border-radius:7px;border:1px solid transparent}
+.sev.critical{color:#ffd7dc;background:rgba(244,63,94,.16);border-color:rgba(244,63,94,.4)}
+.sev.high{color:#ffe1cc;background:rgba(251,146,60,.16);border-color:rgba(251,146,60,.4)}
+.sev.medium{color:#fff0cc;background:rgba(251,191,36,.16);border-color:rgba(251,191,36,.4)}
+.sev.low{color:#d5dbe4;background:rgba(100,116,139,.18);border-color:rgba(100,116,139,.4)}
 .mono{font-family:var(--mono);font-size:.85em}
-.conf{font-variant-numeric:tabular-nums}
-.detail{position:sticky;top:12px;max-height:80vh;overflow:auto}
-.detail .body{padding:14px}
-.d-title{font-size:1.15rem;font-weight:600;margin:6px 0}
-.d-sum{color:var(--ink);margin:0 0 12px}
-.facts{display:grid;grid-template-columns:1fr 1fr;gap:6px 14px;margin-bottom:8px}
-.facts .k{font-size:.66rem;text-transform:uppercase;letter-spacing:.05em;color:var(--muted)}
-.facts .val{overflow-wrap:anywhere}
-h3.sec{font-size:.75rem;text-transform:uppercase;letter-spacing:.06em;color:var(--ink-2);border-top:1px solid var(--line);padding-top:10px;margin:12px 0 6px}
+.conf{font-variant-numeric:tabular-nums;font-weight:600}
+
+/* detail */
+.detail{position:sticky;top:14px;max-height:82vh;overflow:auto}
+.detail .body{padding:16px}
+.d-head{display:flex;align-items:center;gap:8px;margin-bottom:2px}
+.d-title{font-size:1.2rem;font-weight:700;letter-spacing:-.01em;margin:8px 0 4px}
+.d-sum{color:var(--ink-2);margin:0 0 14px;line-height:1.55}
+.facts{display:grid;grid-template-columns:1fr 1fr;gap:10px 16px;margin-bottom:6px}
+.facts .k{font-size:.64rem;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);font-weight:600}
+.facts .val{overflow-wrap:anywhere;margin-top:1px}
+h3.sec{font-size:.72rem;text-transform:uppercase;letter-spacing:.08em;color:var(--ink-2);font-weight:700;
+  border-top:1px solid var(--line);padding-top:12px;margin:14px 0 8px}
 .ev{width:100%;min-width:0}
-.ev td{white-space:normal;padding:4px 8px 4px 0;border:0}
+.ev td{white-space:normal;padding:5px 8px 5px 0;border:0}
+.ev tr:not(:last-child) td{border-bottom:1px solid var(--line)}
+.ev td:first-child{color:var(--ink-2)}
 .ev td:nth-child(2){font-family:var(--mono);font-size:.82rem}
-.ev td:nth-child(3){color:var(--ink-2);font-size:.82rem}
-.factor{display:grid;grid-template-columns:150px 1fr 42px;align-items:center;gap:8px;margin:4px 0;font-size:.82rem}
-.factor .bar{height:8px;background:var(--accent);border-radius:0 4px 4px 0}
+.ev td:nth-child(3){color:var(--muted);font-size:.8rem}
+.factor{display:grid;grid-template-columns:150px 1fr 44px;align-items:center;gap:10px;margin:6px 0;font-size:.82rem}
+.factor .track{height:8px;background:var(--surface-2);border-radius:5px;overflow:hidden}
+.factor .bar{height:100%;background:linear-gradient(90deg,var(--accent-2),var(--accent));border-radius:5px}
 .factor .w{text-align:right;font-family:var(--mono);color:var(--ink-2)}
-.action{background:var(--surface-2);border-radius:6px;padding:8px 10px;margin:0}
-.hash{font-family:var(--mono);font-size:.72rem;color:var(--ink-2);overflow-wrap:anywhere}
-pre{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;padding:10px;overflow:auto;max-height:320px;font-family:var(--mono);font-size:.72rem}
-.empty{padding:28px 14px;text-align:center;color:var(--ink-2)}
-.det-strip{display:flex;flex-wrap:wrap;gap:6px;margin-top:6px}
-.chip{font-size:.72rem;border:1px solid var(--line-strong);border-radius:999px;padding:3px 9px;color:var(--ink-2)}
-.chip.off{opacity:.5;text-decoration:line-through}
-.foot{color:var(--muted);font-size:.75rem;margin-top:16px}
-.uploadbar{display:flex;flex-wrap:wrap;align-items:center;gap:10px;margin:14px 0 0;padding:10px 14px;border:1px dashed var(--line-strong);border-radius:10px;background:var(--surface);transition:border-color .15s,background .15s}
-.uploadbar.drag{border-color:var(--accent);background:color-mix(in srgb,var(--accent) 8%,var(--surface))}
-.uploadbar.busy{opacity:.7;pointer-events:none}
-.btn{display:inline-flex;align-items:center;gap:6px;cursor:pointer;border:1px solid var(--line-strong);border-radius:8px;padding:6px 12px;font-size:.82rem;font-weight:600;color:var(--ink);background:var(--accent);border-color:var(--accent)}
-.btn.ghost{background:transparent;color:var(--ink-2);text-decoration:none}
-.btn:hover{filter:brightness(1.06)}
-.uphint{color:var(--ink-2);font-size:.82rem}
-.demopill{display:inline-flex;align-items:center;gap:5px;background:#f59e0b;color:#3a2606;font-weight:700;font-size:.7rem;letter-spacing:.06em;padding:3px 9px;border-radius:999px}
-.demo-note{margin:8px 2px 0;font-size:.78rem;line-height:1.4;color:var(--ink-2)}
-.demo-note b{color:var(--ink)}
+.action{background:var(--surface-2);border:1px solid var(--line);border-radius:9px;padding:10px 12px;margin:0;line-height:1.5}
+.hash{font-family:var(--mono);font-size:.72rem;color:var(--ink-2);overflow-wrap:anywhere;margin:2px 0}
+.hash span{color:var(--muted)}
+pre{background:var(--page-2);border:1px solid var(--line);border-radius:9px;padding:12px;overflow:auto;max-height:340px;
+  font-family:var(--mono);font-size:.72rem;line-height:1.5}
+details summary{cursor:pointer;color:var(--accent);font-weight:600}
+.empty{padding:40px 16px;text-align:center;color:var(--muted)}
+.empty svg{opacity:.5;margin-bottom:8px}
+.foot{color:var(--muted);font-size:.75rem;margin-top:20px;text-align:center}
 </style>
 </head>
 <body>
 <div class="wrap">
   <header>
     <div class="brand">
-      <div class="mark">&#9724;</div>
-      <div><h1>Enclave Threat Console</h1><p class="sub">Passive detection behind a one-way data diode</p></div>
+      <div class="mark">&#128737;</div>
+      <div><h1>Enclave Threat Console</h1><p class="sub">Passive AI/ML detection behind a one-way data diode</p></div>
     </div>
-    <div class="badge"><span class="dot"></span><span><b>One-way verified</b> &middot; outbound blocked: <span class="mono" id="egress">0</span></span></div>
+    <div class="status">
+      <span class="pill"><span class="dot live"></span><b>Live</b></span>
+      <span class="pill"><span class="dot"></span><b>One-way verified</b> &middot; outbound blocked <span class="mono" id="egress">0</span></span>
+    </div>
   </header>
 
-  <div class="uploadbar" id="uploadbar">
-    <span class="demopill">&#9679; DEMO</span>
-    <label class="btn" for="pcapfile">&#8593; Upload capture</label>
-    <input id="pcapfile" type="file" accept=".pcap,.pcapng,.cap" hidden>
-    <a class="btn ghost" href="/api/sample" download>&#8595; Download sample</a>
-    <span class="uphint" id="uphint">Drop a .pcap / .pcapng here to analyse it &mdash; read-only, nothing is sent back out.</span>
-  </div>
-  <p class="demo-note"><b>Demo only.</b> Upload exists so you can try the engine with your own capture.
-    In production there is no upload and nothing manual &mdash; the enclave <b>automatically</b> monitors the
-    live one-way feed (mirror / data diode) 24/7 and raises these alerts on its own.</p>
+  <section class="toolbar" id="uploadbar">
+    <div class="trow">
+      <span class="demopill">&#9679; DEMO</span>
+      <label class="btn" for="pcapfile">&#8593;&nbsp; Upload capture</label>
+      <input id="pcapfile" type="file" accept=".pcap,.pcapng,.cap" hidden>
+      <a class="btn ghost" href="/api/sample" download>&#8595;&nbsp; Download sample</a>
+      <span class="uphint" id="uphint">Drop a .pcap / .pcapng here to analyse it &mdash; read-only, nothing is sent back out.</span>
+    </div>
+    <p class="demo-note"><b>Demo only.</b> Upload exists so you can try the engine with your own capture.
+      In production there is no upload and nothing manual &mdash; the enclave <b>automatically</b> monitors the
+      live one-way feed (mirror / data diode) 24/7 and raises these alerts on its own.</p>
+  </section>
 
   <div class="kpis" id="kpis"></div>
   <div class="det-strip" id="detstrip"></div>
 
-  <div class="grid" style="margin-top:14px">
+  <div class="grid">
     <div class="panel">
       <div class="ph"><h2>Live detections</h2><span class="sub" id="count">0 alerts</span></div>
       <div class="tablewrap">
@@ -119,13 +193,12 @@ pre{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;p
         <div class="empty" id="empty">Waiting for detections&hellip;</div>
       </div>
     </div>
-    <aside class="panel detail"><div class="body" id="detail"><div class="empty">Select a detection to see its evidence.</div></div></aside>
+    <aside class="panel detail"><div class="body" id="detail"><div class="empty">Select a detection to see its evidence, top factors and MITRE mapping.</div></div></aside>
   </div>
-  <p class="foot">All traffic shown is from the replayed capture. Alert hashes are real SHA-256 over the alert records.</p>
+  <p class="foot">All traffic shown is from the replayed capture &middot; alert hashes are real SHA-256 over the alert records.</p>
 </div>
 
 <script>
-const SEV = {critical:3,high:2,medium:1,low:0};
 const state = {alerts:new Map(), order:[], selected:null, metrics:null};
 const $ = s => document.querySelector(s);
 const esc = s => String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -159,30 +232,30 @@ function renderDetail(){
     ['Flow ID',a.flow_id],['MITRE',(a.mitre_attack||[]).join(', ')||'-']];
   const maxw = Math.max(...a.top_factors.map(f=>Math.abs(f.contribution)),0.001);
   $('#detail').innerHTML = `
-    <div><span class="sev ${a.severity}">${a.severity}</span> <span class="mono" style="color:var(--ink-2)">${a.alert_id}</span></div>
+    <div class="d-head"><span class="sev ${a.severity}">${a.severity}</span> <span class="mono" style="color:var(--muted)">${a.alert_id}</span></div>
     <div class="d-title">${esc(a.sub_type)}</div>
     <p class="d-sum">${esc(a.summary)}</p>
     <div class="facts">${facts.map(([k,v])=>`<div><div class="k">${k}</div><div class="val ${k==='Flow ID'?'mono':''}">${v}</div></div>`).join('')}</div>
     <h3 class="sec">Evidence</h3>
     <table class="ev">${Object.entries(a.evidence).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v.observed)}</td><td>${v.reference?esc(v.reference):''}</td></tr>`).join('')}</table>
     <h3 class="sec">Why &middot; top factors</h3>
-    ${a.top_factors.map(f=>`<div class="factor"><span class="mono">${esc(f.feature)}</span><span><span class="bar" style="width:${Math.abs(f.contribution)/maxw*100}%"></span></span><span class="w">${f.contribution.toFixed(2)}</span></div>`).join('')}
+    ${a.top_factors.map(f=>`<div class="factor"><span class="mono">${esc(f.feature)}</span><span class="track"><span class="bar" style="width:${Math.abs(f.contribution)/maxw*100}%"></span></span><span class="w">${f.contribution.toFixed(2)}</span></div>`).join('')}
     <h3 class="sec">Suggested manual action</h3><p class="action">${esc(a.suggested_action)}</p>
     <h3 class="sec">Evidence integrity</h3>
-    <div class="hash">alert hash: ${a.custody?esc(a.custody.alert_hash):'n/a'}</div>
-    <div class="hash">prev hash: ${a.custody?esc(a.custody.prev_alert_hash):'n/a'}</div>
-    <details style="margin-top:10px"><summary style="cursor:pointer;color:var(--accent)">Alert record (JSON)</summary><pre>${esc(JSON.stringify(a,null,2))}</pre></details>`;
+    <div class="hash"><span>alert hash</span> ${a.custody?esc(a.custody.alert_hash):'n/a'}</div>
+    <div class="hash"><span>prev hash</span> ${a.custody?esc(a.custody.prev_alert_hash):'n/a'}</div>
+    <details style="margin-top:12px"><summary>Alert record (JSON)</summary><pre>${esc(JSON.stringify(a,null,2))}</pre></details>`;
 }
 function renderKpis(){
   const m = state.metrics; if(!m) return;
   const open = state.order.length, crit = [...state.alerts.values()].filter(a=>a.severity==='critical').length;
-  const active = m.detectors.filter(d=>d.active).length;
+  const active = m.detectors.filter(d=>d.active).length, total = m.detectors.length;
   const tiles = [
-    ['Flows/s', Math.round(m.flows_per_s).toLocaleString(), `target ${m.target_flows_per_s.toLocaleString()}`],
+    ['Flows / sec', Math.round(m.flows_per_s).toLocaleString(), `target ${m.target_flows_per_s.toLocaleString()}`],
     ['Latency p95', (m.latency_ms.p95).toFixed(1)+' <small>ms</small>', `budget ${m.latency_budget_ms} ms`],
     ['Critical alerts', crit, `${open} open in total`],
-    ['Detectors', `${active} <small>/ 6</small>`, m.input_mode==='flow'?'flow-only input':'all inputs'],
-    ['Dropped', m.dropped, `${(m.events.flow||0).toLocaleString()} flows`],
+    ['Detectors', `${active} <small>/ ${total}</small>`, m.input_mode==='flow'?'flow-only input':'all inputs'],
+    ['Dropped', m.dropped, `${(m.events.flow||0).toLocaleString()} flows seen`],
   ];
   $('#kpis').innerHTML = tiles.map(([l,v,c])=>`<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="c">${c}</div></div>`).join('');
   $('#egress').textContent = m.egress_blocked;
