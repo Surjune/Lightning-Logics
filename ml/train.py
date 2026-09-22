@@ -1,8 +1,11 @@
 """Train the supervised flow classifier and write a hash-verified artifact + model card.
 
 Usage:
-    python ml/train.py --csv-dir data/cicids2017        # real: CIC-IDS2017 flow CSVs
-    python ml/train.py --synthetic                       # demo: fabricated labelled flows
+    python ml/train.py --csv-dir data/cicids2017            # real CIC-IDS2017 (.csv or .parquet)
+    python ml/train.py --csv-dir data/cicids2017 --augment  # real where rich, synthetic where sparse
+    python ml/train.py --real-benign Monday.parquet         # real benign + synthetic attacks
+    python ml/train.py --csv data/generated/flows.csv       # our generated dataset
+    python ml/train.py --synthetic                          # fully fabricated demo flows
 
 Both paths share the training, evaluation and save code, so the artifact the live detector loads
 is produced identically. Metrics are reported per class (precision / recall / F1) on a held-out
@@ -37,6 +40,48 @@ DEFAULT_SEED = 20260917
 PERMUTATION_REPEATS = 5
 HYBRID_BENIGN_CAP = 60_000
 HYBRID_ATTACKS_PER_CLASS = 10_000
+# --augment caps: keep the huge real classes from swamping the split, and lift each attack class to
+# at least a trainable floor with synthetic flows where the real dataset is sparse (CIC-IDS2017's
+# Infiltration is ~36 rows and its Botnet lives in a separate file).
+AUGMENT_BENIGN_CAP = 80_000
+AUGMENT_DDOS_CAP = 40_000
+AUGMENT_FLOOR = 8_000
+ATTACK_LABELS = ("ddos", "recon_scan", "c2_beacon", "exfiltration")
+
+
+def _synthetic_rows(label: str, n: int, rng: np.random.Generator) -> pd.DataFrame:
+    import generate_dataset as gd
+
+    generators = gd.FLOW_CLASSES[label][0]
+    rows = [[derive_features(generators[int(rng.integers(0, len(generators)))](rng))[k] for k in FEATURE_NAMES]
+            + [label] for _ in range(n)]
+    return pd.DataFrame(rows, columns=[*FEATURE_NAMES, "label"])
+
+
+def _augment_sparse(frame: pd.DataFrame, seed: int) -> tuple[pd.DataFrame, dict[str, str]]:
+    """Keep real rows where the dataset is rich; top up sparse/absent attack classes synthetically."""
+    rng = np.random.default_rng(seed)
+    provenance: dict[str, str] = {}
+    parts: list[pd.DataFrame] = []
+
+    benign = frame[frame["label"] == BENIGN]
+    if len(benign) > AUGMENT_BENIGN_CAP:
+        benign = benign.sample(n=AUGMENT_BENIGN_CAP, random_state=seed)
+    parts.append(benign)
+    provenance[BENIGN] = f"{len(benign):,} real"
+
+    for label in ATTACK_LABELS:
+        real = frame[frame["label"] == label]
+        cap = AUGMENT_DDOS_CAP if label == "ddos" else None
+        if cap and len(real) > cap:
+            real = real.sample(n=cap, random_state=seed)
+        parts.append(real)
+        need = max(AUGMENT_FLOOR - len(real), 0)
+        if need:
+            parts.append(_synthetic_rows(label, need, rng))
+        provenance[label] = (f"{len(real):,} real" + (f" + {need:,} synthetic" if need else "")
+                             if len(real) else f"{need:,} synthetic (no real rows)")
+    return pd.concat(parts, ignore_index=True), provenance
 
 
 def _hybrid_real_benign(benign_path: Path, seed: int) -> pd.DataFrame:
@@ -97,6 +142,8 @@ def main() -> int:
     src.add_argument("--csv", help="a single feature CSV from ml/generate_dataset.py")
     src.add_argument("--real-benign", help="real benign capture (parquet/csv) + synthetic attacks")
     src.add_argument("--synthetic", action="store_true", help="use fabricated demo flows")
+    parser.add_argument("--augment", action="store_true",
+                        help="with --csv-dir: keep real rows, top up sparse attack classes synthetically")
     parser.add_argument("--rows", type=int, default=6000, help="synthetic rows per class")
     parser.add_argument("--test-frac", type=float, default=0.3)
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED)
@@ -114,7 +161,12 @@ def main() -> int:
         dataset, temporal = "real-benign+synthetic-attacks", False
     else:
         frame = load_cicids2017(Path(args.csv_dir))
-        dataset, temporal = "CIC-IDS2017", True
+        if args.augment:
+            frame, provenance = _augment_sparse(frame, args.seed)
+            dataset, temporal = "CIC-IDS2017+augmented", False
+            print("class provenance:", provenance)
+        else:
+            dataset, temporal = "CIC-IDS2017", True
     print(f"loaded {len(frame):,} flows from {dataset}: "
           f"{frame['label'].value_counts().to_dict()}")
 

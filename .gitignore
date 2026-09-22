@@ -20,3 +20,6 @@ ml/artifacts/*.json
 
 # Generated datasets are reproducible via ml/generate_dataset.py (keep DATASET.md)
 data/generated/*.csv
+
+# Downloaded CIC-IDS2017 data (user-provided, large)
+data/cicids2017/
