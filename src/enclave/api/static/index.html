@@ -79,6 +79,9 @@ pre{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;p
 .btn.ghost{background:transparent;color:var(--ink-2);text-decoration:none}
 .btn:hover{filter:brightness(1.06)}
 .uphint{color:var(--ink-2);font-size:.82rem}
+.demopill{display:inline-flex;align-items:center;gap:5px;background:#f59e0b;color:#3a2606;font-weight:700;font-size:.7rem;letter-spacing:.06em;padding:3px 9px;border-radius:999px}
+.demo-note{margin:8px 2px 0;font-size:.78rem;line-height:1.4;color:var(--ink-2)}
+.demo-note b{color:var(--ink)}
 </style>
 </head>
 <body>
@@ -92,11 +95,15 @@ pre{background:var(--surface-2);border:1px solid var(--line);border-radius:6px;p
   </header>
 
   <div class="uploadbar" id="uploadbar">
+    <span class="demopill">&#9679; DEMO</span>
     <label class="btn" for="pcapfile">&#8593; Upload capture</label>
     <input id="pcapfile" type="file" accept=".pcap,.pcapng,.cap" hidden>
     <a class="btn ghost" href="/api/sample" download>&#8595; Download sample</a>
     <span class="uphint" id="uphint">Drop a .pcap / .pcapng here to analyse it &mdash; read-only, nothing is sent back out.</span>
   </div>
+  <p class="demo-note"><b>Demo only.</b> Upload exists so you can try the engine with your own capture.
+    In production there is no upload and nothing manual &mdash; the enclave <b>automatically</b> monitors the
+    live one-way feed (mirror / data diode) 24/7 and raises these alerts on its own.</p>
 
   <div class="kpis" id="kpis"></div>
   <div class="det-strip" id="detstrip"></div>
