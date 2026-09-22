@@ -132,6 +132,15 @@ def cmd_manifest(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_bench(args: argparse.Namespace) -> int:
+    from enclave.bench import run, run_parallel
+
+    configure_logging("WARNING")
+    result = run_parallel(args.flows, args.workers, args.seed) if args.workers > 1 else run(args.flows, args.seed)
+    print(json.dumps(result, indent=2))
+    return 0
+
+
 def cmd_schema(_: argparse.Namespace) -> int:
     print(json.dumps(Alert.model_json_schema(), indent=2))
     return 0
@@ -176,6 +185,12 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("intel-manifest", help="write manifest.json (SHA-256) for an intel dir")
     p.add_argument("dir", default="intel", nargs="?")
     p.set_defaults(func=cmd_manifest)
+
+    p = sub.add_parser("bench", help="measure detection-engine throughput (flows/s)")
+    p.add_argument("--flows", type=int, default=200_000)
+    p.add_argument("--workers", type=int, default=1, help="parallel sharded pipelines")
+    p.add_argument("--seed", type=int, default=20260917)
+    p.set_defaults(func=cmd_bench)
 
     p = sub.add_parser("schema", help="print the alert JSON schema")
     p.set_defaults(func=cmd_schema)
