@@ -43,7 +43,8 @@ flowchart LR
         ING --> MET --> DET --> FUS --> OUT
     end
 
-    GW -->|mirror| DIODE ==>|one direction only| ING
+    GW -->|mirror| DIODE
+    DIODE ==>|one direction only| ING
 
     classDef prod fill:#e0e7ff,stroke:#4f46e5,color:#312e81
     classDef diode fill:#fde68a,stroke:#d97706,color:#7c2d12
