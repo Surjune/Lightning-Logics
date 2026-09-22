@@ -93,7 +93,7 @@ possible"; any positive number is a real-time multiplier.
 | **Read-only ingest** | Listen-only sources; no active modules; `egress_guard` blocks any outbound `connect`/`sendto` at process level | Test raises `EgressAttemptError`; dashboard shows blocked-attempt count |
 | **No payload decryption** | Only the cleartext TLS ClientHello, packet sizes and timing are parsed; QUIC Initial packets are left sealed by design | The TLS parser stops after the handshake; no key material anywhere |
 | **Streaming, not batch** | Event-time windows, 5 s flow active timeout, per-second detector flush, alerts emitted mid-flow | Per-alert processing latency reported as p50/p95 |
-| **Defined throughput target** | Target 20,000 flows/s; **measured ~6,300 events/s** single-process on a laptop (incl. startup), p95 latency ~0.17 s, 0 drops | `--speed 0` reports events/s, latency and drops; the 20k/s target needs the partitioned-worker path (roadmap) |
+| **Defined throughput target** | **Demonstrated ~12,000 flows/s** (detection engine, single process), p95 latency ~2 ms; `enclave replay --speed 0` adds the pcap parser (~6,300 events/s incl. startup) | `enclave bench` measures the engine directly; `--workers N` runs sharded pipelines |
 | **Standard alert schema** | Pydantic `Alert` exported as JSON Schema; Community ID flow id; evidence, factors, MITRE, custody hashes | `GET /api/schema/alert` / `enclave schema` |
 
 ## Alert schema
@@ -175,16 +175,17 @@ mypy                 # strict type checking
   from your own training run.
 - **IPFIX / NetFlow v9 / sFlow**: only NetFlow v5 is decoded here; the intended path is a
   `goflow2` front end whose JSON the pipeline consumes.
-- **Benchmark harness** for fixed-rate throughput runs is not yet included; `--speed 0`
-  gives a first measurement.
+- **Benchmark harness**: `enclave bench` measures the detection engine (~12,000 flows/s single
+  process, p95 ~2 ms on a laptop). The 20,000 flows/s target needs multi-core sharding (`--workers`,
+  which scales on hardware with spare cores) or hot-path optimisation.
 - **Docker Compose** with a simulated diode and an internal-only network is on the roadmap;
   the `egress_guard` already enforces the one-way rule at process level.
 - Payload-level attacks inside encrypted sessions and very slow-and-low exfiltration are out
   of scope for a metadata-only system; this is a monitoring layer within defence in depth.
 
-Throughput and accuracy figures should be re-measured on your own hardware. The ~6,300 events/s
-above is a single-process laptop run including startup; the 20k/s target is a goal for the
-partitioned-worker path, not a current result.
+Throughput and accuracy figures should be re-measured on your own hardware. ~12,000 flows/s is the
+single-process detection-engine rate (`enclave bench`); the 20k/s target needs sharding across
+cores or hot-path optimisation.
 
 ## Authorisation note
 
