@@ -100,6 +100,7 @@ def _register_analysis(app: FastAPI, store: AlertStore, metrics: Metrics, settin
     from enclave.api.analyze import analyze_to_store
 
     lock = asyncio.Lock()
+    sample_cache: dict[str, Path] = {}  # generated once, then served instantly
 
     def _error(code: str, message: str, status: int) -> JSONResponse:
         return JSONResponse({"error": {"code": code, "message": message}}, status_code=status)
@@ -137,12 +138,18 @@ def _register_analysis(app: FastAPI, store: AlertStore, metrics: Metrics, settin
 
     @app.get("/api/sample")
     def sample() -> FileResponse:
-        from enclave.synth import generate
+        path = sample_cache.get("path")
+        if path is None or not path.is_file():
+            demo = Path("data/demo.pcap")
+            if demo.is_file():
+                path = demo  # reuse the already-generated demo capture — instant
+            else:
+                from enclave.synth import generate
 
-        out_dir = Path(tempfile.mkdtemp(prefix="enclave-sample-"))
-        pcap_path = out_dir / "enclave-sample.pcap"
-        generate(pcap_path, None)
-        return FileResponse(pcap_path, media_type="application/vnd.tcpdump.pcap",
+                path = Path(tempfile.mkdtemp(prefix="enclave-sample-")) / "enclave-sample.pcap"
+                generate(path, None)  # generate once; cached for every later download
+            sample_cache["path"] = path
+        return FileResponse(path, media_type="application/vnd.tcpdump.pcap",
                             filename="enclave-sample.pcap")
 
 
