@@ -63,7 +63,11 @@ enclave replay data/demo.pcap --speed 6 --config config/enclave.example.json --s
 # 3. replay as fast as possible, print a summary (throughput check)
 enclave replay data/demo.pcap --speed 0 --config config/enclave.example.json
 
-# 4. flow-only mode: listen for NetFlow v5 (feed with softflowd or a router)
+# 4. live capture off an interface (real diode feed) via a streaming pcap
+#    Linux/macOS:  tcpdump -i eth1 -U -w - | enclave sniff --serve
+#    Windows:      dumpcap -i 5 -w - | enclave sniff --serve
+
+# 5. flow-only mode: listen for NetFlow v5 (feed with softflowd or a router)
 enclave netflow --listen 127.0.0.1:2055 --config config/enclave.example.json --serve
 
 # 5. verify the tamper-evident evidence chain

@@ -1,4 +1,4 @@
-"""Command-line entry point: synth | replay | netflow | verify-log | intel-manifest | schema."""
+"""CLI: synth | replay | sniff | netflow | serve | bench | verify-log | intel-manifest | schema."""
 
 from __future__ import annotations
 
@@ -116,6 +116,19 @@ def cmd_serve(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_sniff(args: argparse.Namespace) -> int:
+    """Live capture from a streaming pcap (stdin by default): tcpdump -i eth1 -U -w - | enclave sniff."""
+    from enclave.ingest.live_source import LiveSource
+
+    new_run_id()
+    settings, intel = _load(Path(args.config) if args.config else None)
+    install(settings.internal_networks)
+    source = LiveSource(args.stream)
+    metrics = _run_pipeline(settings, intel, source, args.serve, args.host, args.port)
+    _summary(metrics)
+    return 0
+
+
 def cmd_verify(args: argparse.Namespace) -> int:
     path = Path(args.log)
     if not path.is_file():
@@ -177,6 +190,14 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--host", default="0.0.0.0")
     p.add_argument("--port", type=int, default=8000)
     p.set_defaults(func=cmd_serve)
+
+    p = sub.add_parser("sniff", help="live capture from a streaming pcap (stdin or FIFO)")
+    p.add_argument("--stream", default="-", help="'-' for stdin, or a FIFO/streaming pcap path")
+    p.add_argument("--config")
+    p.add_argument("--serve", action="store_true")
+    p.add_argument("--host", default="127.0.0.1")
+    p.add_argument("--port", type=int, default=8000)
+    p.set_defaults(func=cmd_sniff)
 
     p = sub.add_parser("verify-log", help="verify the hash-chained evidence log")
     p.add_argument("log", default="var/alerts.jsonl", nargs="?")
