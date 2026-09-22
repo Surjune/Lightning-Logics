@@ -1,7 +1,7 @@
 # Enclave Threat Console
 
 **Passive, one-way AI/ML detection of cyber threats in unidirectional IP traffic.**
-Reference prototype for Smart India Hackathon problem statement **26145** (NTRO).
+Reference prototype for a Smart India Hackathon problem statement.
 
 Critical-infrastructure links are copied one way into a monitoring enclave through a passive TAP or a
 hardware data diode — nothing can travel back. This pipeline turns that one-way stream into real-time,
