@@ -67,8 +67,9 @@ enclave replay data/demo.pcap --speed 0 --config config/enclave.example.json
 #    Linux/macOS:  tcpdump -i eth1 -U -w - | enclave sniff --serve
 #    Windows:      dumpcap -i 5 -w - | enclave sniff --serve
 
-# 5. flow-only mode: listen for NetFlow v5 (feed with softflowd or a router)
+# 5. flow-only mode: NetFlow v5 collector, or NetFlow v9/IPFIX/sFlow via goflow2 JSON
 enclave netflow --listen 127.0.0.1:2055 --config config/enclave.example.json --serve
+goflow2 -format json | enclave flow-json --config config/enclave.example.json --serve
 
 # 5. verify the tamper-evident evidence chain
 enclave verify-log var/alerts.jsonl
@@ -177,8 +178,8 @@ mypy                 # strict type checking
   and an Isolation Forest for unsupervised anomaly are the next models; both plug into the same
   `Detection` interface. Fill the CIC-IDS2017 metrics in [docs/VALIDATION.md](docs/VALIDATION.md)
   from your own training run.
-- **IPFIX / NetFlow v9 / sFlow**: only NetFlow v5 is decoded here; the intended path is a
-  `goflow2` front end whose JSON the pipeline consumes.
+- **IPFIX / NetFlow v9 / sFlow**: consumed via `goflow2` JSON (`enclave flow-json`); a native
+  NetFlow v5 collector is also built in. Only the goflow2 bridge is exercised by tests.
 - **Benchmark harness**: `enclave bench` measures the detection engine (~12,000 flows/s single
   process, p95 ~2 ms on a laptop). The 20,000 flows/s target needs multi-core sharding (`--workers`,
   which scales on hardware with spare cores) or hot-path optimisation.
