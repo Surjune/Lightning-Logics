@@ -31,10 +31,35 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
 from datasets import BENIGN, load_cicids2017, load_feature_csv, make_synthetic
 
-from enclave.ml.features import FEATURE_NAMES
+from enclave.ml.features import FEATURE_NAMES, derive_features
 
 DEFAULT_SEED = 20260917
 PERMUTATION_REPEATS = 5
+HYBRID_BENIGN_CAP = 60_000
+HYBRID_ATTACKS_PER_CLASS = 10_000
+
+
+def _hybrid_real_benign(benign_path: Path, seed: int) -> pd.DataFrame:
+    """Real benign capture (parquet/csv) + synthetic attacks — the low-false-positive recipe.
+
+    Real benign traffic is what a synthetic generator gets wrong, so we take it from a genuine
+    capture and pair it with attack signatures until the attack-day CIC-IDS2017 files are available.
+    """
+    import generate_dataset as gd
+
+    rng = np.random.default_rng(seed)
+    real = load_cicids2017(benign_path)
+    benign = real[real["label"] == BENIGN]
+    if len(benign) > HYBRID_BENIGN_CAP:
+        benign = benign.sample(n=HYBRID_BENIGN_CAP, random_state=seed)
+    attack_rows: list[list[object]] = []
+    for label in ("ddos", "recon_scan", "c2_beacon", "exfiltration"):
+        generators = gd.FLOW_CLASSES[label][0]
+        for _ in range(HYBRID_ATTACKS_PER_CLASS):
+            feats = derive_features(generators[int(rng.integers(0, len(generators)))](rng))
+            attack_rows.append([feats[n] for n in FEATURE_NAMES] + [label])
+    attacks = pd.DataFrame(attack_rows, columns=[*FEATURE_NAMES, "label"])
+    return pd.concat([benign, attacks], ignore_index=True)
 
 
 def _split(frame: pd.DataFrame, test_frac: float, temporal: bool, seed: int) -> tuple[pd.DataFrame, pd.DataFrame]:
@@ -70,6 +95,7 @@ def main() -> int:
     src = parser.add_mutually_exclusive_group(required=True)
     src.add_argument("--csv-dir", help="directory of CIC-IDS2017 flow CSVs")
     src.add_argument("--csv", help="a single feature CSV from ml/generate_dataset.py")
+    src.add_argument("--real-benign", help="real benign capture (parquet/csv) + synthetic attacks")
     src.add_argument("--synthetic", action="store_true", help="use fabricated demo flows")
     parser.add_argument("--rows", type=int, default=6000, help="synthetic rows per class")
     parser.add_argument("--test-frac", type=float, default=0.3)
@@ -83,6 +109,9 @@ def main() -> int:
     elif args.csv:
         frame = load_feature_csv(Path(args.csv))
         dataset, temporal = "generated-flows", False
+    elif args.real_benign:
+        frame = _hybrid_real_benign(Path(args.real_benign), args.seed)
+        dataset, temporal = "real-benign+synthetic-attacks", False
     else:
         frame = load_cicids2017(Path(args.csv_dir))
         dataset, temporal = "CIC-IDS2017", True

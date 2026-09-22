@@ -20,6 +20,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "src"))
 
+from enclave.core.constants import ML_RATE_EPSILON_S
 from enclave.ml.features import FEATURE_NAMES, FlowCounts, derive_features
 
 PROTO_TCP = 6
@@ -63,17 +64,66 @@ def _resolve(columns: list[str], wanted: str) -> str:
     raise KeyError(f"CIC-IDS2017 CSV is missing a column for {wanted!r} (tried {_COL_ALIASES[wanted]})")
 
 
-def load_cicids2017(csv_dir: Path) -> pd.DataFrame:
-    files = sorted(csv_dir.glob("*.csv"))
+def _read_flow_file(path: Path) -> pd.DataFrame:
+    raw = pd.read_parquet(path) if path.suffix == ".parquet" else pd.read_csv(
+        path, low_memory=False, encoding="latin-1")
+    raw.columns = [c.strip() for c in raw.columns]
+    return raw
+
+
+def _feature_frame(merged: pd.DataFrame) -> pd.DataFrame:
+    """Vectorised twin of enclave.ml.features.derive_features (kept in lock-step by test_ml)."""
+    raw_dur = merged["duration_us"].to_numpy(dtype=float) / 1_000_000.0  # CIC duration is microseconds
+    dur = np.maximum(raw_dur, ML_RATE_EPSILON_S)
+    fp = merged["fwd_packets"].to_numpy(dtype=float)
+    bp = merged["bwd_packets"].to_numpy(dtype=float)
+    fb = merged["fwd_bytes"].to_numpy(dtype=float)
+    bb = merged["bwd_bytes"].to_numpy(dtype=float)
+    proto = merged["proto"].to_numpy(dtype=float)
+    total_packets = fp + bp
+    total_bytes = fb + bb
+    out = pd.DataFrame({
+        "duration_s": raw_dur,
+        "total_packets": total_packets,
+        "total_bytes": total_bytes,
+        "fwd_packets": fp,
+        "bwd_packets": bp,
+        "fwd_bytes": fb,
+        "bwd_bytes": bb,
+        "bytes_per_s": total_bytes / dur,
+        "packets_per_s": total_packets / dur,
+        "fwd_pkt_len_mean": fb / np.maximum(fp, 1.0),
+        "bwd_pkt_len_mean": bb / np.maximum(bp, 1.0),
+        "down_up_ratio": bb / np.maximum(fb, 1.0),
+        "fwd_bwd_pkt_ratio": fp / np.maximum(bp, 1.0),
+        "syn_flag": (merged["syn"].to_numpy(dtype=float) > 0).astype(float),
+        "rst_flag": (merged["rst"].to_numpy(dtype=float) > 0).astype(float),
+        "is_tcp": (proto == PROTO_TCP).astype(float),
+        "is_udp": (proto == PROTO_UDP).astype(float),
+    })
+    out["label"] = merged["label"].to_numpy()
+    return out[[*FEATURE_NAMES, "label"]]
+
+
+def _flow_files(data_dir: Path) -> list[Path]:
+    # A single .csv file, or a .parquet file/dataset-directory, is used as-is; a plain directory is
+    # globbed for both formats (so a folder of CIC-IDS2017 day files just works).
+    if data_dir.suffix in {".csv", ".parquet"}:
+        return [data_dir]
+    return sorted(data_dir.glob("*.csv")) + sorted(data_dir.glob("*.parquet"))
+
+
+def load_cicids2017(data_dir: Path) -> pd.DataFrame:
+    """Load CIC-IDS2017 flow files (.csv or .parquet) and map them to the model feature frame."""
+    files = _flow_files(data_dir)
     if not files:
-        raise FileNotFoundError(f"no .csv files in {csv_dir}")
+        raise FileNotFoundError(f"no .csv or .parquet files in {data_dir}")
     frames: list[pd.DataFrame] = []
     for path in files:
-        raw = pd.read_csv(path, low_memory=False, encoding="latin-1")
-        raw.columns = [c.strip() for c in raw.columns]
+        raw = _read_flow_file(path)
         cols = list(raw.columns)
         resolved = {key: _resolve(cols, key) for key in _COL_ALIASES}
-        frame = pd.DataFrame({
+        frames.append(pd.DataFrame({
             "duration_us": pd.to_numeric(raw[resolved["duration_us"]], errors="coerce"),
             "fwd_packets": pd.to_numeric(raw[resolved["fwd_packets"]], errors="coerce"),
             "bwd_packets": pd.to_numeric(raw[resolved["bwd_packets"]], errors="coerce"),
@@ -83,22 +133,11 @@ def load_cicids2017(csv_dir: Path) -> pd.DataFrame:
             "syn": pd.to_numeric(raw[resolved["syn"]], errors="coerce"),
             "rst": pd.to_numeric(raw[resolved["rst"]], errors="coerce"),
             "label_raw": raw[resolved["label"]].astype(str).str.strip().str.upper(),
-        })
-        frames.append(frame)
-    merged = pd.concat(frames, ignore_index=True)
-    merged = merged.replace([np.inf, -np.inf], np.nan).dropna()
+        }))
+    merged = pd.concat(frames, ignore_index=True).replace([np.inf, -np.inf], np.nan).dropna()
     merged["label"] = merged["label_raw"].map(_CIC_LABELS)
     merged = merged.dropna(subset=["label"])
-    rows = [
-        derive_features(FlowCounts(
-            duration_s=float(r.duration_us) / 1_000_000.0,  # CIC flow duration is microseconds
-            fwd_packets=float(r.fwd_packets), bwd_packets=float(r.bwd_packets),
-            fwd_bytes=float(r.fwd_bytes), bwd_bytes=float(r.bwd_bytes),
-            proto=int(r.proto), syn=bool(r.syn), rst=bool(r.rst),
-        )) | {"label": r.label}
-        for r in merged.itertuples(index=False)
-    ]
-    return pd.DataFrame(rows, columns=[*FEATURE_NAMES, "label"])
+    return _feature_frame(merged)
 
 
 def _counts(rng: np.random.Generator, label: str) -> FlowCounts:
