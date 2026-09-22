@@ -61,20 +61,25 @@ stays at 1.00 (synthetic). This is the shipped model. Reproduce:
 python ml/train.py --real-benign "Benign-Monday-no-metadata.parquet"   # .parquet or .csv, file or dir
 ```
 
-**Shipped model** (`real-benign+synthetic-attacks`, stratified split, 30,000 test rows):
+**Shipped model** (`CIC-IDS2017+augmented`, stratified split, 43,200 test rows). Real CIC-IDS2017
+flows are used wherever the dataset provides enough; the two classes CIC-IDS2017 barely covers are
+topped up synthetically (`python ml/train.py --csv-dir data/cicids2017 --augment`):
 
-| Class | Precision | Recall | F1 |
-| --- | --- | --- | --- |
-| benign | 1.00 | 1.00 | 1.00 |
-| c2_beacon | 1.00 | 1.00 | 1.00 |
-| ddos | 0.89 | 0.88 | 0.88 |
-| exfiltration | 1.00 | 1.00 | 1.00 |
-| recon_scan | 0.88 | 0.89 | 0.88 |
-| **macro avg** | **0.95** | **0.95** | **0.95** |
+| Class | Precision | Recall | F1 | Training data |
+| --- | --- | --- | --- | --- |
+| benign | 1.00 | 1.00 | 1.00 | **80,000 real** |
+| ddos | 0.99 | 0.99 | 0.99 | **40,000 real** (DoS + DDoS days) |
+| recon_scan | 1.00 | 0.99 | 0.99 | 1,956 real PortScan + synthetic |
+| c2_beacon | 1.00 | 1.00 | 1.00 | synthetic only — no Botnet file downloaded |
+| exfiltration | 1.00 | 1.00 | 1.00 | 36 real Infiltration + synthetic |
+| **macro avg** | **1.00** | **1.00** | **1.00** | macro-F1 0.9965 |
 
-> Attack recall here is still validated on *synthetic* attacks. To validate it on **real** attacks,
-> add the CIC-IDS2017 attack-day files (Tuesday–Friday: DoS, DDoS, PortScan, Bot, Infiltration) to a
-> folder and run `python ml/train.py --csv-dir <folder>` for full real-data multiclass metrics.
+Honest reading: **benign, ddos and recon_scan are validated on real CIC-IDS2017 traffic** — the
+ddos F1 of 0.99 is a genuine real-data result, and benign at 1.00 confirms the ~0% false-positive
+rate. **c2_beacon and exfiltration scores are on synthetic data** (CIC-IDS2017's Infiltration is ~36
+rows and its Botnet is a separate file), so their perfect scores reflect clean synthetic separation,
+not real-world difficulty. To make those two real too, add `Botnet-Friday-no-metadata.parquet` (real
+C2) to `data/cicids2017/` and retrain.
 
 
 ### CIC-IDS2017 (fill after training)

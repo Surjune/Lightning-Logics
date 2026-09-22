@@ -43,8 +43,9 @@ Brunswick). It ships labelled flow-feature CSVs whose labels map onto our classe
 3. Train (`pip install -e ".[train]"` first):
 
    ```bash
-   python ml/train.py --csv-dir data/cicids2017          # full multiclass on all days
-   python ml/train.py --real-benign Monday.parquet       # real benign + synthetic attacks
+   python ml/train.py --csv-dir data/cicids2017            # full multiclass, real only
+   python ml/train.py --csv-dir data/cicids2017 --augment  # real where rich, synthetic where sparse
+   python ml/train.py --real-benign Monday.parquet         # real benign + synthetic attacks
    ```
 
    Use `--real-benign` when you only have the benign day: it pairs real benign traffic with
