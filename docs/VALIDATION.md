@@ -1,9 +1,9 @@
 # Validation — methodology and metrics
 
-This documents how detection quality is measured and where the numbers come from. **Fill the
-CIC-IDS2017 table from your own training run** (`python ml/train.py --csv-dir data/cicids2017` writes
-the metrics into `ml/artifacts/flow_classifier.meta.json`); the synthetic-demo numbers below are real
-but only prove the wiring.
+This documents how detection quality is measured and where the numbers come from. The CIC-IDS2017
+tables below carry the **real** metrics from the shipped training run (`ml/train.py` writes them into
+`ml/artifacts/flow_classifier.meta.json`); each is reproducible with the command shown next to it. The
+separate synthetic-generator numbers are real too, but only validate features and wiring.
 
 ## Datasets
 
@@ -133,7 +133,9 @@ this as a wiring/feature validation, and cross-check on DGArchive samples.
 The automated end-to-end test (`tests/test_pipeline_e2e.py`) replays the labelled synthetic capture
 and asserts that **all six threat classes plus campaign correlation fire**, every alert carries
 evidence and an explanation, the tamper-evident chain verifies, and flow-only mode disables the
-DNS/TLS detectors. Run `pytest -q` (27 tests, no network calls).
+DNS/TLS detectors. Run `pytest -q` (39 tests, no network calls) — this includes the read-only proof
+(`tests/test_egress.py`): with the egress guard installed, any outbound connect/sendto is refused
+while loopback stays permitted.
 
 ## Throughput & latency (state your measured numbers)
 
