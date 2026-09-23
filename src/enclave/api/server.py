@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import contextlib
+import shutil
 import tempfile
 from pathlib import Path
 from typing import Annotated
@@ -28,7 +29,7 @@ from enclave.core.constants import (
 from enclave.intel import Intel
 from enclave.metrics import Metrics
 from enclave.schema.alert import Alert
-from enclave.sinks.store import AlertStore
+from enclave.sinks.store import AlertStore, HashChainLog
 
 STATIC_DIR = Path(__file__).parent / "static"
 
@@ -113,28 +114,38 @@ def _register_analysis(app: FastAPI, store: AlertStore, metrics: Metrics, settin
             return _error("unsupported_type",
                           f"{suffix or 'file'} not accepted; upload {', '.join(sorted(UPLOAD_ALLOWED_SUFFIXES))}",
                           415)
-        before = sum(metrics.alerts_by_class.values())
-        with tempfile.NamedTemporaryFile(suffix=suffix, delete=False) as handle:
-            tmp_path = Path(handle.name)
-            written = 0
+        tmp_dir = Path(tempfile.mkdtemp(prefix="enclave-analyze-"))
+        tmp_path = tmp_dir / f"upload{suffix}"
+        written = 0
+        with tmp_path.open("wb") as handle:
             while chunk := await file.read(UPLOAD_READ_CHUNK):
                 written += len(chunk)
                 if written > UPLOAD_MAX_BYTES:
-                    handle.close()
-                    tmp_path.unlink(missing_ok=True)
+                    shutil.rmtree(tmp_dir, ignore_errors=True)
                     return _error("too_large", f"capture exceeds {UPLOAD_MAX_BYTES // (1024 * 1024)} MiB", 413)
                 handle.write(chunk)
         try:
             async with lock:
-                await analyze_to_store(tmp_path, settings, intel, store, metrics)
-        except Exception as exc:
+                # Analyse the uploaded capture in ISOLATION so the report is this file alone,
+                # never mixed into the shared live feed.
+                file_store = AlertStore(HashChainLog(tmp_dir / "alerts.jsonl"), f"upload:{name}")
+                file_metrics = Metrics()
+                await analyze_to_store(tmp_path, settings, intel, file_store, file_metrics)
+                alerts = [a.model_dump(mode="json") for a in file_store.all()]
+                snap = file_metrics.snapshot()
+        except Exception as exc:  # surface any parse/analysis failure as a typed error
             return _error("analysis_failed", str(exc), 422)
         finally:
-            tmp_path.unlink(missing_ok=True)
-        new_alerts = sum(metrics.alerts_by_class.values()) - before
-        recent = [a.model_dump(mode="json") for a in store.recent(API_ALERTS_DEFAULT_LIMIT)]
-        return JSONResponse({"filename": name, "bytes": written, "new_alerts": new_alerts,
-                             "alerts_by_class": dict(metrics.alerts_by_class), "alerts": recent})
+            shutil.rmtree(tmp_dir, ignore_errors=True)
+        return JSONResponse({
+            "filename": name, "bytes": written,
+            "alerts": alerts,
+            "summary": {"total": len(alerts), "by_class": snap["alerts_by_class"],
+                        "by_severity": snap["alerts_by_severity"]},
+            "stats": {"events": snap["events"], "flows_per_s": snap["flows_per_s"],
+                      "latency_ms": snap["latency_ms"], "dropped": snap["dropped"],
+                      "detectors_active": [d["name"] for d in snap["detectors"] if d["active"]]},
+        })
 
     @app.get("/api/sample")
     def sample() -> FileResponse:

@@ -171,6 +171,38 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600}
 .empty{padding:44px 18px;text-align:center;color:var(--muted)}
 .empty svg{opacity:.45;margin-bottom:10px}
 .foot{color:var(--muted);font-size:.75rem;margin-top:22px;text-align:center}
+
+/* upload report modal */
+.modal-overlay{position:fixed;inset:0;z-index:50;display:grid;place-items:center;padding:22px;
+  background:rgba(3,6,11,.68);backdrop-filter:blur(6px);animation:ovin .16s ease}
+.modal-overlay[hidden]{display:none}
+@keyframes ovin{from{opacity:0}to{opacity:1}}
+.modal{width:min(780px,100%);max-height:86vh;display:flex;flex-direction:column;overflow:hidden;
+  background:linear-gradient(180deg,var(--surface),var(--page-2));border:1px solid var(--line-strong);
+  border-radius:18px;box-shadow:0 32px 90px -24px rgba(0,0,0,.85);animation:mup .2s ease}
+@keyframes mup{from{opacity:0;transform:translateY(12px)}to{opacity:1;transform:none}}
+.modal-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;padding:18px 22px;border-bottom:1px solid var(--line)}
+.modal-head h3{margin:0;font-size:1.12rem;font-weight:700;display:flex;align-items:center;gap:9px}
+.modal-head h3 svg{width:19px;height:19px;color:var(--accent)}
+.modal-meta{margin:5px 0 0;color:var(--ink-2);font-size:.82rem}
+.modal-x{cursor:pointer;background:transparent;border:1px solid var(--line-strong);color:var(--ink-2);width:34px;height:34px;border-radius:10px;font-size:1.35rem;line-height:1;display:grid;place-items:center;flex:none}
+.modal-x:hover{background:var(--surface-2);color:var(--ink)}
+.modal-chips{display:flex;flex-wrap:wrap;gap:7px;padding:15px 22px 4px}
+.mchip{font-size:.74rem;border:1px solid var(--line-strong);border-radius:999px;padding:4px 11px;color:var(--ink-2)}
+.mchip b{color:var(--ink)}
+.modal-body{overflow:auto;padding:14px 22px 22px;display:flex;flex-direction:column;gap:11px}
+.acard{border:1px solid var(--line);border-left:3px solid var(--line-strong);border-radius:12px;padding:13px 15px;background:var(--surface)}
+.acard.s-critical{border-left-color:var(--crit)}.acard.s-high{border-left-color:var(--high)}
+.acard.s-medium{border-left-color:var(--med)}.acard.s-low{border-left-color:var(--low)}
+.acard-h{display:flex;align-items:center;gap:9px;flex-wrap:wrap}
+.acard-h .tc{font-weight:700;letter-spacing:-.01em}
+.acard-h .cf{margin-left:auto;font-variant-numeric:tabular-nums;color:var(--ink-2);font-size:.8rem}
+.acard .st{color:var(--ink-2);font-size:.8rem;margin:4px 0 0}
+.acard .sm{margin:7px 0 0;line-height:1.55}
+.acard details{margin-top:9px}
+.acard details summary{font-size:.8rem}
+.clean{text-align:center;padding:34px 16px;color:var(--good);font-weight:600}
+.clean svg{width:34px;height:34px;margin-bottom:8px}
 </style>
 </head>
 <body>
@@ -229,6 +261,20 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600}
     <aside class="panel detail"><div class="body" id="detail"><div class="empty">Select a detection to see its evidence, top factors and MITRE mapping.</div></div></aside>
   </div>
   <p class="foot">All traffic shown is from the replayed capture &middot; alert hashes are real SHA-256 over the alert records.</p>
+</div>
+
+<div class="modal-overlay" id="reportModal" hidden>
+  <div class="modal">
+    <div class="modal-head">
+      <div>
+        <h3><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8z"/><path d="M14 3v5h5"/></svg><span id="rmTitle">capture.pcap</span></h3>
+        <p class="modal-meta" id="rmMeta"></p>
+      </div>
+      <button class="modal-x" id="rmClose" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-chips" id="rmChips"></div>
+    <div class="modal-body" id="rmBody"></div>
+  </div>
 </div>
 
 <script>
@@ -348,6 +394,41 @@ _dl.addEventListener('click', async e=>{
   setTimeout(()=>{ _dl.classList.remove('busy'); _dl.innerHTML=ICON_DL+' <span class="dl-label">Download sample</span>'; }, 2400);
 });
 
+/* Upload report modal — shows the analysis of the uploaded file ALONE */
+const SEVR={critical:3,high:2,medium:1,low:0};
+const _modal=document.getElementById('reportModal');
+function closeReport(){ _modal.hidden=true; }
+document.getElementById('rmClose').addEventListener('click',closeReport);
+_modal.addEventListener('click',e=>{ if(e.target===_modal) closeReport(); });
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'&&!_modal.hidden) closeReport(); });
+function openReport(data){
+  const alerts=(data.alerts||[]).slice().sort((a,b)=>(SEVR[b.severity]-SEVR[a.severity])||(new Date(b.detected_at)-new Date(a.detected_at)));
+  const st=data.stats||{}, flows=(st.events&&st.events.flow)||0, p95=(st.latency_ms&&st.latency_ms.p95)||0;
+  document.getElementById('rmTitle').textContent=data.filename;
+  document.getElementById('rmMeta').innerHTML=`${(data.bytes/1048576).toFixed(2)} MiB &middot; <b>${data.summary.total}</b> alert${data.summary.total===1?'':'s'} &middot; ${flows.toLocaleString()} flows analysed &middot; p95 ${p95.toFixed(1)} ms`;
+  const bc=data.summary.by_class||{};
+  document.getElementById('rmChips').innerHTML=Object.entries(bc).sort((a,b)=>b[1]-a[1]).map(([k,v])=>`<span class="mchip">${esc(k)} <b>${v}</b></span>`).join('');
+  const body=document.getElementById('rmBody');
+  if(!alerts.length){
+    body.innerHTML=`<div class="clean"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 3v5c0 4.6-3.1 8-7 10-3.9-2-7-5.4-7-10V6l7-3z"/><path d="M9 12l2.2 2.2L15.5 10"/></svg><div>No threats detected in this capture.</div></div>`;
+  }else{
+    body.innerHTML=alerts.map(a=>{
+      const maxw=Math.max(...a.top_factors.map(f=>Math.abs(f.contribution)),0.001);
+      const ev=Object.entries(a.evidence).map(([k,v])=>`<tr><td>${esc(k)}</td><td>${esc(v.observed)}</td><td>${v.reference?esc(v.reference):''}</td></tr>`).join('');
+      const fac=a.top_factors.map(f=>`<div class="factor"><span class="mono">${esc(f.feature)}</span><span class="track"><span class="bar" style="width:${Math.abs(f.contribution)/maxw*100}%"></span></span><span class="w">${f.contribution.toFixed(2)}</span></div>`).join('');
+      return `<div class="acard s-${a.severity}">
+        <div class="acard-h"><span class="sev ${a.severity}">${a.severity}</span><span class="tc">${esc(a.threat_class)}</span><span class="cf">conf ${a.confidence.toFixed(2)}</span></div>
+        <div class="st">${esc(a.sub_type)} &middot; ${esc(a.src)} &rarr; ${esc(a.dst)}${a.dst_port&&a.dst_port!=='-'?':'+esc(a.dst_port):''}</div>
+        <p class="sm">${esc(a.summary)}</p>
+        <details><summary>Evidence &middot; top factors &middot; MITRE ${(a.mitre_attack||[]).join(', ')||''}</summary>
+          <table class="ev">${ev}</table>
+          <h3 class="sec">Why &middot; top factors</h3>${fac}
+          <p class="action" style="margin-top:8px">${esc(a.suggested_action)}</p></details></div>`;
+    }).join('');
+  }
+  _modal.hidden=false; body.scrollTop=0;
+}
+
 /* Upload */
 const _fileInput=document.getElementById('pcapfile'), _bar=document.getElementById('uploadbar'), _hint=document.getElementById('uphint');
 async function analyze(file){
@@ -356,7 +437,7 @@ async function analyze(file){
   const fd=new FormData(); fd.append('file',file);
   try{ const res=await fetch('/api/analyze',{method:'POST',body:fd}); const data=await res.json();
     if(!res.ok){ _hint.textContent=`Error: ${(data.error&&data.error.message)||res.status}`; }
-    else{ _hint.textContent=`${file.name}: ${data.new_alerts} new alert(s) from ${(data.bytes/1048576).toFixed(1)} MiB.`; await poll(); renderRows(); renderDetail(); }
+    else{ _hint.textContent=`${file.name}: ${data.summary.total} alert(s) detected.`; openReport(data); }
   }catch(e){ _hint.textContent='Upload failed: '+e; }
   finally{ _bar.classList.remove('busy'); _fileInput.value=''; }
 }
