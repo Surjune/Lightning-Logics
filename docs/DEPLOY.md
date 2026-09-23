@@ -71,6 +71,26 @@ No `amazonaws.com`, no cold start, HTTPS. Done.
 
 ---
 
+## Cost — keeping it open (approx., us-east-1)
+
+For an always-on demo (~1,460 hours over 2 months). CPU on App Runner only bills while a request is
+being handled, so a low-traffic demo stays near the memory baseline.
+
+| Option | Spec | ~2-month cost |
+| --- | --- | --- |
+| App Runner | 1 vCPU / 1 GB | ~$12–15 |
+| App Runner | 1 vCPU / 2 GB | ~$21–30 |
+| Lightsail Micro | 0.25 vCPU / 1 GB | ~$20 flat ($10/mo) |
+| Lightsail Nano | 0.25 vCPU / 512 MB | ~$14 flat ($7/mo, tight memory) |
+| EC2 t3.micro | 2 GB | ~$15, or free if within the 12-month free tier |
+
+Budget **~$15–25** for two months — a small slice of typical student/AWS credits. Data transfer is
+negligible (small JSON responses, tiny assets). **Lightsail Micro** is the most predictable (flat, no
+metered surprises); **EC2 t3.micro** may be free if your account is under 12 months old.
+
+**Set a budget alert:** Billing → Budgets → alert at ~$30, so there are no surprises. Delete the
+service after judging to stop the spend.
+
 ## Notes
 
 - **WebSockets** power the live feed; App Runner, Lightsail Containers, ECS Fargate and EC2 all
