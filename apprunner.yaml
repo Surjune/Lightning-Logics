@@ -1,0 +1,13 @@
+# AWS App Runner — build the public demo straight from this repo (no Docker/ECR needed).
+# App Runner uses its managed Python runtime, installs the package, and runs the demo server.
+# The product runs on-premises; this only powers the optional browser demo (statistical detectors).
+version: 1.0
+runtime: python311
+build:
+  commands:
+    build:
+      - pip install .
+run:
+  command: enclave serve --config config/enclave.example.json --host 0.0.0.0 --port 8000
+  network:
+    port: 8000
