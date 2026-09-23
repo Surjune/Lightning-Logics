@@ -87,9 +87,11 @@ a{color:inherit;text-decoration:none}
 .demo-note b{color:var(--ink);font-weight:600}
 
 /* ── overview: KPIs + charts ─────────────────────────── */
-.overview{display:grid;grid-template-columns:minmax(0,1fr) 360px;gap:18px;margin:0 0 22px;align-items:start}
-@media (max-width:1120px){.overview{grid-template-columns:1fr}}
-.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:15px}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:15px;margin:0 0 18px}
+.charts{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.25fr);gap:18px;margin:0 0 22px;align-items:stretch}
+@media (max-width:900px){.charts{grid-template-columns:1fr}}
+.charts .panel{display:flex;flex-direction:column}
+.charts .vbody,.charts .classbars{flex:1}
 .kpi{position:relative;overflow:hidden;background:var(--surface);
   border:1px solid var(--line);border-radius:var(--r);padding:17px 18px;box-shadow:var(--shadow);transition:border-color .15s,transform .12s,box-shadow .15s}
 .kpi:hover{border-color:var(--line-strong);transform:translateY(-2px);box-shadow:var(--shadow-lg)}
@@ -105,7 +107,7 @@ a{color:inherit;text-decoration:none}
   background:linear-gradient(180deg,var(--raised),var(--surface))}
 .ph h2{margin:0;font-size:.96rem;font-weight:700;letter-spacing:-.01em}
 .ph .sub{margin:0;color:var(--ink-2);font-size:.78rem;font-weight:500}
-.viz .vbody{display:flex;gap:20px;padding:18px;align-items:center}
+.viz .vbody{display:flex;gap:24px;padding:20px 22px;align-items:center;justify-content:center}
 .donut-wrap{position:relative;width:124px;height:124px;flex:none}
 .donut{width:124px;height:124px;border-radius:50%;background:var(--surface-3);box-shadow:inset 0 0 0 1px rgba(16,27,45,.04)}
 .donut::after{content:"";position:absolute;inset:18px;border-radius:50%;background:var(--surface);box-shadow:0 2px 10px -4px rgba(16,27,45,.18)}
@@ -117,7 +119,7 @@ a{color:inherit;text-decoration:none}
 .lg b{margin-left:auto;color:var(--ink);font-variant-numeric:tabular-nums;font-weight:600}
 .sw{width:11px;height:11px;border-radius:4px;flex:none}
 .sw.critical{background:var(--crit)} .sw.high{background:var(--high)} .sw.medium{background:var(--med)} .sw.low{background:var(--low)}
-.classbars{padding:4px 18px 18px}
+.classbars{padding:8px 20px 18px;display:flex;flex-direction:column;justify-content:center}
 .classbars .cbh{font-size:.66rem;text-transform:uppercase;letter-spacing:.09em;color:var(--muted);font-weight:700;margin:6px 0 10px}
 .cbrow{display:grid;grid-template-columns:120px 1fr 26px;align-items:center;gap:11px;margin:8px 0;font-size:.78rem}
 .cbl{color:var(--ink-2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
@@ -254,15 +256,18 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600}
   </section>
 
   <div class="section-h">Overview</div>
-  <section class="overview">
-    <div class="kpis" id="kpis"></div>
+  <div class="kpis" id="kpis"></div>
+  <section class="charts">
     <div class="panel viz">
       <div class="ph"><h2>Alerts by severity</h2><span class="sub" id="vizSub">0 total</span></div>
       <div class="vbody">
         <div class="donut-wrap"><div class="donut" id="donut"></div><div class="donut-center"><b id="donutTotal">0</b><span>alerts</span></div></div>
         <div class="legend" id="sevLegend"></div>
       </div>
-      <div class="classbars"><div class="cbh">By threat class</div><div id="classbars"></div></div>
+    </div>
+    <div class="panel">
+      <div class="ph"><h2>Top threat classes</h2><span class="sub">most frequent detections</span></div>
+      <div class="classbars"><div id="classbars"></div></div>
     </div>
   </section>
 
