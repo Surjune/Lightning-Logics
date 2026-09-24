@@ -22,16 +22,20 @@ from enclave.core.config import Settings
 from enclave.core.constants import (
     API_ALERTS_DEFAULT_LIMIT,
     API_ALERTS_MAX_LIMIT,
+    DEMO_BUS_MAXSIZE,
+    DEMO_REPLAY_SPEED,
     UPLOAD_ALLOWED_SUFFIXES,
     UPLOAD_MAX_BYTES,
     UPLOAD_READ_CHUNK,
 )
+from enclave.core.logging import get_logger
 from enclave.intel import Intel
 from enclave.metrics import Metrics
 from enclave.schema.alert import Alert
 from enclave.sinks.store import AlertStore, HashChainLog
 
 STATIC_DIR = Path(__file__).parent / "static"
+log = get_logger(__name__)
 
 
 def create_app(store: AlertStore, metrics: Metrics, settings: Settings | None = None,
@@ -102,6 +106,7 @@ def _register_analysis(app: FastAPI, store: AlertStore, metrics: Metrics, settin
 
     lock = asyncio.Lock()
     sample_cache: dict[str, Path] = {}  # generated once, then served instantly
+    demo_state: dict[str, asyncio.Task[None] | None] = {"task": None}
 
     def _error(code: str, message: str, status: int) -> JSONResponse:
         return JSONResponse({"error": {"code": code, "message": message}}, status_code=status)
@@ -149,6 +154,11 @@ def _register_analysis(app: FastAPI, store: AlertStore, metrics: Metrics, settin
 
     @app.get("/api/sample")
     def sample() -> FileResponse:
+        return FileResponse(_demo_capture(), media_type="application/vnd.tcpdump.pcap",
+                            filename="enclave-sample.pcap")
+
+    def _demo_capture() -> Path:
+        """The labelled demo capture, reused if present and generated once otherwise."""
         path = sample_cache.get("path")
         if path is None or not path.is_file():
             demo = Path("data/demo.pcap")
@@ -158,10 +168,34 @@ def _register_analysis(app: FastAPI, store: AlertStore, metrics: Metrics, settin
                 from enclave.synth import generate
 
                 path = Path(tempfile.mkdtemp(prefix="enclave-sample-")) / "enclave-sample.pcap"
-                generate(path, None)  # generate once; cached for every later download
+                generate(path, None)  # generate once; cached for every later use
             sample_cache["path"] = path
-        return FileResponse(path, media_type="application/vnd.tcpdump.pcap",
-                            filename="enclave-sample.pcap")
+        return path
+
+    async def _replay_demo(path: Path) -> None:
+        # Replay the demo capture into the SHARED store/metrics so the live feed fills up, the same
+        # way `enclave replay --serve` does from the CLI — only triggered from the dashboard button.
+        from enclave.ingest.pcap_source import PcapSource
+        from enclave.pipeline import Pipeline
+
+        try:
+            source = PcapSource(path, speed=DEMO_REPLAY_SPEED)
+            await Pipeline(settings, source, store, metrics, intel).run(bus_maxsize=DEMO_BUS_MAXSIZE)
+        except Exception:  # a demo replay must never take the server down
+            log.exception("demo replay failed")
+
+    @app.post("/api/demo/replay")
+    async def demo_replay() -> JSONResponse:
+        task = demo_state["task"]
+        if task is not None and not task.done():
+            return JSONResponse({"status": "running"})
+        demo_state["task"] = asyncio.create_task(_replay_demo(_demo_capture()))
+        return JSONResponse({"status": "started"})
+
+    @app.get("/api/demo/status")
+    def demo_status() -> JSONResponse:
+        task = demo_state["task"]
+        return JSONResponse({"running": task is not None and not task.done()})
 
 
 async def serve(app: FastAPI, host: str, port: int) -> None:

@@ -248,11 +248,13 @@ details summary{cursor:pointer;color:var(--accent);font-weight:600}
       <label class="btn" for="pcapfile"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 16V4M7 9l5-5 5 5"/><path d="M4 20h16"/></svg> Upload capture</label>
       <input id="pcapfile" type="file" accept=".pcap,.pcapng,.cap" hidden>
       <a class="btn ghost" id="dlSample" href="/api/sample" download><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v12M7 11l5 5 5-5"/><path d="M4 20h16"/></svg> <span class="dl-label">Download sample</span></a>
+      <button class="btn ghost" id="runDemo" type="button"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l14 8-14 8z"/></svg> <span class="rd-label">Run live demo</span></button>
       <span class="uphint" id="uphint">Drop a .pcap / .pcapng here to analyse it &mdash; read-only, nothing is sent back out.</span>
     </div>
-    <p class="demo-note"><b>Demo only.</b> Upload exists so you can try the engine with your own capture.
-      In production there is no upload and nothing manual &mdash; the enclave <b>automatically</b> monitors the
-      live one-way feed (mirror / data diode) 24/7 and raises these alerts on its own.</p>
+    <p class="demo-note"><b>Demo only.</b> Two ways to try it: <b>Upload capture</b> analyses your own file in an
+      isolated report, and <b>Run live demo</b> replays a labelled sample capture through the engine so you watch
+      detections stream into the live feed below. In production there is no upload and nothing manual &mdash; the
+      enclave <b>automatically</b> monitors the one-way feed (mirror / data diode) 24/7 and raises these alerts on its own.</p>
   </section>
 
   <div class="section-h">Overview</div>
@@ -431,6 +433,23 @@ _dl.addEventListener('click', async e=>{
     _dl.innerHTML=ICON_OK+' <span class="dl-label">Downloaded</span>';
   }catch(err){ _dl.innerHTML=ICON_DL+' <span class="dl-label">Retry download</span>'; }
   setTimeout(()=>{ _dl.classList.remove('busy'); _dl.innerHTML=ICON_DL+' <span class="dl-label">Download sample</span>'; }, 2400);
+});
+
+/* Run live demo — replays the sample capture into the shared live feed on demand */
+const _rd=document.getElementById('runDemo'), _rdLabel=()=>_rd.querySelector('.rd-label');
+let _rdPoll=null;
+function rdSet(busy,label){ _rd.classList.toggle('busy',busy); _rd.firstElementChild.outerHTML = busy?ICON_SPIN:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 4l14 8-14 8z"/></svg>'; _rdLabel().textContent=label; }
+async function pollDemo(){
+  try{ const s=await (await fetch('/api/demo/status')).json();
+    if(!s.running){ clearInterval(_rdPoll); _rdPoll=null; rdSet(false,'Run live demo'); _hint.textContent='Demo complete — detections are in the live feed below.'; }
+  }catch(e){}
+}
+_rd.addEventListener('click', async ()=>{
+  if(_rd.classList.contains('busy')) return;
+  rdSet(true,'Replaying…'); _hint.textContent='Replaying the sample capture — watch detections appear in the live feed below.';
+  try{ const r=await fetch('/api/demo/replay',{method:'POST'}); if(!r.ok) throw 0;
+    if(!_rdPoll) _rdPoll=setInterval(pollDemo,1500);
+  }catch(e){ rdSet(false,'Retry live demo'); _hint.textContent='Could not start the demo replay.'; }
 });
 
 /* Upload report modal — shows the analysis of the uploaded file ALONE */

@@ -225,3 +225,9 @@ ML_BENIGN_LABEL: Final = "benign"
 UPLOAD_MAX_BYTES: Final = 64 * 1024 * 1024
 UPLOAD_ALLOWED_SUFFIXES: Final[frozenset[str]] = frozenset({".pcap", ".pcapng", ".cap"})
 UPLOAD_READ_CHUNK: Final = 1 << 20
+# Speed multiplier for the dashboard "Run live demo" button: replays the labelled demo capture
+# into the live feed so detections stream in over several seconds instead of all at once (0 = instant).
+DEMO_REPLAY_SPEED: Final = 6.0
+# Small bus for that replay so backpressure paces it to the (event-loop-shared) consumer and keeps
+# queue-wait latency inside the p95 budget, rather than letting a compressed capture pile up.
+DEMO_BUS_MAXSIZE: Final = 64

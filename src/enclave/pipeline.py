@@ -87,8 +87,11 @@ class Pipeline:
                 updates.append(update)
         return updates
 
-    async def run(self) -> None:
-        bus: asyncio.Queue[BusItem] = asyncio.Queue(maxsize=BUS_MAX_EVENTS)
+    async def run(self, bus_maxsize: int | None = None) -> None:
+        # A smaller bus is used by the dashboard "Run live demo" replay: it shares the event loop
+        # with the web server, so a bounded queue applies backpressure and keeps queue-wait latency
+        # low instead of letting a compressed capture pile up.
+        bus: asyncio.Queue[BusItem] = asyncio.Queue(maxsize=bus_maxsize or BUS_MAX_EVENTS)
         live = self.source.live
 
         async def produce() -> None:
