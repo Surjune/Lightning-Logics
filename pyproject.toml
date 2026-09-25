@@ -32,7 +32,7 @@ enclave = "enclave.cli:main"
 where = ["src"]
 
 [tool.setuptools.package-data]
-enclave = ["py.typed"]
+enclave = ["py.typed", "api/static/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
