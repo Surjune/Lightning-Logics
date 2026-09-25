@@ -77,7 +77,7 @@ cards, feature-engineering rationale and validation metrics:
 
 - **Throughput** ~12,000 flows/s (detection engine, single process), **p95 latency ~2 ms**
 - **`ml-flow`** on real CIC-IDS2017: **0.03% false positives** on real benign, **DDoS F1 0.99**, **C2 F1 0.98**, macro-F1 0.99
-- **Quality**: 38 automated tests pass · `ruff` clean · `mypy --strict` clean
+- **Quality**: 39 automated tests pass (incl. a read-only egress proof) · `ruff` clean · `mypy --strict` clean
 
 ## The five architectural constraints
 
@@ -112,11 +112,13 @@ pip install -e ".[dev]"
 # 1  generate the labelled demo capture + offline intel
 enclave synth --out data/demo.pcap --intel intel
 
-# 2  replay it and open the dashboard at http://127.0.0.1:8000
-enclave replay data/demo.pcap --speed 6 --config config/enclave.example.json --serve
-
-# 3  demo server with a file-upload endpoint — drop in a pcap, watch alerts appear
+# 2  start the dashboard at http://127.0.0.1:8000 (default demo)
+#    · "Upload capture"  → analyses your pcap in an isolated report popup
+#    · "Run live demo"   → replays the labelled sample into the live feed
 enclave serve --config config/enclave.example.json --port 8000
+
+# 3  (optional) same live replay from the command line instead of the button
+enclave replay data/demo.pcap --speed 6 --config config/enclave.example.json --serve
 
 # 4  live capture off an interface (the real diode feed), via a streaming pcap
 tcpdump -i eth1 -U -w - | enclave sniff --serve       # Windows: dumpcap -i 5 -w - | enclave sniff --serve
