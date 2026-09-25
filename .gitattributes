@@ -5,3 +5,5 @@
 *.pcapng binary
 *.joblib binary
 *.png binary
+# Hash-verified intel bundle: identical LF bytes on every OS so manifest hashes always match
+intel/** text eol=lf
