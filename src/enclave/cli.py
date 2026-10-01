@@ -66,8 +66,14 @@ def _summary(metrics: Metrics) -> None:
 
 
 def cmd_synth(args: argparse.Namespace) -> int:
-    from enclave.synth import generate
+    from enclave.synth import THREAT_SCENARIOS, generate, generate_threat
     configure_logging()
+    if args.per_threat:
+        # one capture per threat class; the shipped intel bundle is left untouched
+        out_dir = Path(args.per_threat)
+        results = [generate_threat(out_dir / f"{name}.pcap", name) for name in THREAT_SCENARIOS]
+        print(json.dumps(results, indent=2))
+        return 0
     result = generate(Path(args.out), Path(args.intel) if args.intel else None)
     print(json.dumps(result, indent=2))
     return 0
@@ -179,6 +185,8 @@ def build_parser() -> argparse.ArgumentParser:
     p = sub.add_parser("synth", help="generate the labelled demo capture and intel")
     p.add_argument("--out", default="data/demo.pcap")
     p.add_argument("--intel", default="intel")
+    p.add_argument("--per-threat", metavar="DIR",
+                   help="instead write one capture per threat class (plus a benign control) into DIR")
     p.set_defaults(func=cmd_synth)
 
     p = sub.add_parser("replay", help="replay a pcap/pcapng as a live stream")

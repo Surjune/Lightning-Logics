@@ -11,6 +11,7 @@ from __future__ import annotations
 import random
 import socket
 import struct
+from collections.abc import Callable
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -259,3 +260,36 @@ def generate(pcap_path: Path, intel_dir: Path | None = None) -> dict[str, object
     return {"pcap": str(pcap_path), "bad_ja3": bad_ja3, "labels": [
         "recon_scan", "dga", "encrypted_malware", "ddos", "dns_tunnel", "c2_beacon", "exfiltration", "campaign",
     ]}
+
+
+# One capture per threat: the same benign background plus a single attack, so each detector can be
+# shown (and tested) in isolation. Start times give the baselining detectors (DDoS rate, exfil volume,
+# TLS fingerprint rarity) enough normal traffic first; "benign_only" is the no-false-alarm control.
+BACKGROUND_SPAN_S = 200.0
+THREAT_SCENARIOS: dict[str, tuple[str, Callable[[Scenario], None]]] = {
+    "benign_only": ("normal web and DNS traffic only - expect no alerts", lambda sc: None),
+    "ddos_syn_flood": ("spoofed-source TCP SYN flood", lambda sc: sc.syn_flood(sc.t0 + 70)),
+    "ddos_udp_amplification": ("DNS reflection / amplification flood", lambda sc: sc.dns_amplification(sc.t0 + 95)),
+    "c2_beacon": ("C2 check-ins every ~15 s to one destination", lambda sc: sc.beacon(sc.t0 + 5)),
+    "dga_domains": ("burst of algorithmically generated, non-existent domains", lambda sc: sc.dga(sc.t0 + 35)),
+    "dns_tunnel": ("long encoded subdomains in TXT queries", lambda sc: sc.tunnel(sc.t0 + 120)),
+    "encrypted_malware": ("TLS session with a known-bad JA3/JA4 fingerprint and no SNI",
+                          lambda sc: sc.malicious_tls(sc.t0 + 120)),
+    "recon_port_scan": ("vertical TCP port scan of one host", lambda sc: sc.scan(sc.t0 + 20)),
+    "recon_host_sweep": ("horizontal sweep of 240 hosts on Modbus port 502", lambda sc: sc.modbus_sweep(sc.t0 + 150)),
+    "exfiltration": ("~61 MiB bulk upload to a new external destination", lambda sc: sc.exfil(sc.t0 + 175)),
+}
+
+
+def generate_threat(pcap_path: Path, threat: str) -> dict[str, object]:
+    """Write one labelled capture containing benign background plus a single threat scenario."""
+    if threat not in THREAT_SCENARIOS:
+        raise ValueError(f"unknown threat {threat!r}; choose from {', '.join(THREAT_SCENARIOS)}")
+    description, attack = THREAT_SCENARIOS[threat]
+    pcap_path.parent.mkdir(parents=True, exist_ok=True)
+    writer = PcapWriter(pcap_path)
+    sc = Scenario(writer)
+    sc.benign(BACKGROUND_SPAN_S)
+    attack(sc)
+    writer.close()
+    return {"pcap": str(pcap_path), "threat": threat, "description": description}
