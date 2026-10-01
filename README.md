@@ -77,7 +77,7 @@ cards, feature-engineering rationale and validation metrics:
 
 - **Throughput** ~12,000 flows/s (detection engine, single process), **p95 latency ~2 ms**
 - **`ml-flow`** on real CIC-IDS2017: **0.03% false positives** on real benign, **DDoS F1 0.99**, **C2 F1 0.98**, macro-F1 0.99
-- **Quality**: 39 automated tests pass (incl. a read-only egress proof) · `ruff` clean · `mypy --strict` clean
+- **Quality**: 51 automated tests pass (incl. a read-only egress proof and one isolated capture per threat class) · `ruff` clean · `mypy --strict` clean
 
 ## The five architectural constraints
 
@@ -111,6 +111,8 @@ pip install -e ".[dev]"
 
 # 1  generate the labelled demo capture + offline intel
 enclave synth --out data/demo.pcap --intel intel
+#    or one capture per threat class + a benign control, to upload and test each detector alone
+enclave synth --per-threat data/threats
 
 # 2  start the dashboard at http://127.0.0.1:8000 (default demo)
 #    · "Upload capture"  → analyses your pcap in an isolated report popup

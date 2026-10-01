@@ -17,6 +17,7 @@ separate synthetic-generator numbers are real too, but only validate features an
 | abuse.ch SSLBL | JA3 blocklist (offline import) | encrypted-malware fingerprints |
 | **Generated (`ml/generate_dataset.py`)** | Trainable dataset with no download (PS option a) | flow classes + DGA/tunnel |
 | `enclave synth` | Reproducible end-to-end demo | all six + campaign correlation |
+| `enclave synth --per-threat` | One capture per threat + a benign control | each detector in isolation; zero alerts on benign |
 
 Get CIC-IDS2017 from <https://www.unb.ca/cic/datasets/ids-2017.html> (see [`../ml/README.md`](../ml/README.md)).
 
@@ -133,7 +134,9 @@ this as a wiring/feature validation, and cross-check on DGArchive samples.
 The automated end-to-end test (`tests/test_pipeline_e2e.py`) replays the labelled synthetic capture
 and asserts that **all six threat classes plus campaign correlation fire**, every alert carries
 evidence and an explanation, the tamper-evident chain verifies, and flow-only mode disables the
-DNS/TLS detectors. Run `pytest -q` (39 tests, no network calls) — this includes the read-only proof
+DNS/TLS detectors. `tests/test_per_threat.py` replays one capture per threat class and asserts it raises
+exactly that class and nothing else, while a benign-only control raises no alert at all. Run `pytest -q`
+(51 tests, no network calls) — this includes the read-only proof
 (`tests/test_egress.py`): with the egress guard installed, any outbound connect/sendto is refused
 while loopback stays permitted.
 
